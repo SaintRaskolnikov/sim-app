@@ -8,7 +8,7 @@ create table if not exists public.ecg_patterns (
   id text primary key check (char_length(id) between 1 and 64),
   title text not null check (char_length(title) between 1 and 100),
   category text not null check (category in ('Rhythm', '12-lead')),
-  rhythm text not null check (rhythm in ('sinus', 'bradycardia', 'tachycardia', 'afib', 'vtach', 'vfib', 'asystole')),
+  rhythm text not null,
   suggested_rate integer check (suggested_rate between 0 and 300),
   description text not null check (char_length(description) <= 300),
   territory text,
@@ -19,6 +19,8 @@ create table if not exists public.ecg_patterns (
 );
 
 alter table public.ecg_patterns add column if not exists suggested_rate integer check (suggested_rate between 0 and 300);
+alter table public.ecg_patterns drop constraint if exists ecg_patterns_rhythm_check;
+alter table public.ecg_patterns add constraint ecg_patterns_rhythm_check check (rhythm in ('sinus', 'bradycardia', 'tachycardia', 'afib', 'svt', 'flutter', 'vtach', 'torsades', 'vfib', 'fine-vfib', 'asystole', 'junctional-escape', 'ventricular-escape', 'aivr', 'mobitz1', 'mobitz2', 'complete-block', 'sinus-pause'));
 
 alter table public.simulation_sessions enable row level security;
 alter table public.ecg_patterns enable row level security;

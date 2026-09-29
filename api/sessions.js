@@ -3,6 +3,7 @@ import { adminClient } from '../server/supabaseAdmin.js'
 const initialState = {
   heartRate: 85,
   rhythm: 'sinus',
+  pulsePresent: true,
   systolic: 110,
   diastolic: 70,
   spo2: 96,
@@ -12,7 +13,7 @@ const initialState = {
   selectedEcg: 'normal-sinus',
   showTwelveLead: false,
 }
-const rhythms = new Set(['sinus', 'bradycardia', 'tachycardia', 'afib', 'vtach', 'vfib', 'asystole'])
+const rhythms = new Set(['sinus', 'bradycardia', 'tachycardia', 'afib', 'svt', 'flutter', 'vtach', 'torsades', 'vfib', 'fine-vfib', 'asystole', 'junctional-escape', 'ventricular-escape', 'aivr', 'mobitz1', 'mobitz2', 'complete-block', 'sinus-pause'])
 const ranges = {
   heartRate: [0, 300],
   systolic: [0, 300],
@@ -32,6 +33,7 @@ function cleanState(input, current) {
     }
   }
   if (typeof input.rhythm === 'string' && rhythms.has(input.rhythm)) next.rhythm = input.rhythm
+  if (typeof input.pulsePresent === 'boolean') next.pulsePresent = input.pulsePresent
   if (typeof input.selectedEcg === 'string' && input.selectedEcg.length <= 64) next.selectedEcg = input.selectedEcg
   if (typeof input.showTwelveLead === 'boolean') next.showTwelveLead = input.showTwelveLead
   return next

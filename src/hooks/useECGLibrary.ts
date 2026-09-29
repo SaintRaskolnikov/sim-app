@@ -16,7 +16,7 @@ const inferredMorphology: Record<string, string> = {
 
 const defaults: ECGPattern[] = allPatterns.map((pattern) => ({
   ...pattern,
-  morphology: (pattern.morphology ?? inferredMorphology[pattern.id] ?? pattern.rhythm) as ECGMorphology,
+  morphology: (pattern.morphology ?? inferredMorphology[pattern.id] ?? (pattern.rhythm === 'sinus' ? 'normal' : pattern.rhythm)) as ECGMorphology,
 }))
 
 function normalize(pattern: ECGPattern): ECGPattern {
@@ -37,6 +37,11 @@ export function useECGLibrary(enabled = true) {
     patternsRef.current = next
     setPatterns(next)
   }
+  const mergeBuiltins = (loaded: ECGPattern[]) => {
+    const normalized = loaded.map(normalize)
+    const knownIds = new Set(normalized.map((pattern) => pattern.id))
+    return [...normalized, ...defaults.filter((pattern) => !knownIds.has(pattern.id))]
+  }
 
   useEffect(() => {
     if (!enabled) return
@@ -56,7 +61,17 @@ export function useECGLibrary(enabled = true) {
           if (active) setCurrent(defaults)
           return
         }
-        setCurrent(loaded.map(normalize))
+        const merged = mergeBuiltins(loaded)
+        const loadedIds = new Set(loaded.map((pattern) => pattern.id))
+        const addedBuiltins = merged.filter((pattern) => !loadedIds.has(pattern.id))
+        if (addedBuiltins.length > 0) {
+          await fetch('/api/ecg-library', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patterns: addedBuiltins }),
+          })
+        }
+        if (active) setCurrent(merged)
       }
       const channel = client.channel('ecg-library-updates')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'ecg_patterns' }, () => void load())
@@ -76,7 +91,9 @@ export function useECGLibrary(enabled = true) {
         setCurrent(defaults)
         socket.emit('save-library', defaults)
       } else {
-        setCurrent(next.map(normalize))
+        const merged = mergeBuiltins(next)
+        setCurrent(merged)
+        if (merged.length > next.length) socket.emit('save-library', merged)
       }
     })
     return () => {

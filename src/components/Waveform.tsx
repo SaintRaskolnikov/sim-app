@@ -14,11 +14,22 @@ interface WaveformProps {
 const gaussian = (phase: number, center: number, width: number) =>
   Math.exp(-Math.pow((phase - center) / width, 2))
 
-const beatPhase = (time: number, rate: number, irregular = false) => {
-  if (rate <= 0) return 0
-  const beat = time * rate / 60
-  const jitter = irregular ? Math.sin(Math.floor(beat) * 12.9898) * 0.12 : 0
-  return ((beat + jitter) % 1 + 1) % 1
+const fract = (value: number) => value - Math.floor(value)
+
+const beatPhase = (time: number, rate: number) => rate > 0 ? fract(time * rate / 60) : 0
+
+function narrowComplex(phase: number, width: number, showP = true, showT = true) {
+  let value = 0
+  if (showP) value += gaussian(phase, 0.17, 0.035) * 0.13
+  value -= gaussian(phase, 0.335, width * 0.65) * 0.15
+  value += gaussian(phase, 0.365, width) * 0.92
+  value -= gaussian(phase, 0.397, width * 0.75) * 0.28
+  if (showT) value += gaussian(phase, 0.65, 0.075) * 0.25
+  return value
+}
+
+function broadComplex(phase: number, center = 0.36) {
+  return -gaussian(phase, center - 0.065, 0.04) * 0.3 + gaussian(phase, center, 0.065) * 0.82 - gaussian(phase, center + 0.085, 0.05) * 0.42 + gaussian(phase, center + 0.28, 0.095) * 0.16
 }
 
 function ecgSample(time: number, state: SimulationState, pattern?: ECGPattern, leadIndex = 0) {
@@ -26,20 +37,59 @@ function ecgSample(time: number, state: SimulationState, pattern?: ECGPattern, l
   const morphology = pattern?.morphology ?? pattern?.id
   const rate = state.heartRate
   if (rhythm === 'asystole') return Math.sin(time * 2.1) * 0.012
-  if (rhythm === 'vfib') return (Math.sin(time * 17 + Math.sin(time * 5) * 3) * 0.19 + Math.sin(time * 31) * 0.08) * (0.65 + Math.sin(time * 2) * 0.2)
+  if (rhythm === 'vfib' || rhythm === 'fine-vfib') {
+    const envelope = 0.82 + 0.18 * Math.sin(time * 1.3)
+    const amplitude = rhythm === 'fine-vfib' ? 0.11 : 0.34
+    return envelope * amplitude * (0.56 * Math.sin(time * 17 + Math.sin(time * 4.7) * 2.4) + 0.28 * Math.sin(time * 29.3 + 1.8) + 0.16 * Math.sin(time * 41.7 + Math.sin(time * 7.1)))
+  }
   if (rate <= 0) return Math.sin(time * 2.1) * 0.012
 
-  const phase = beatPhase(time, rate, rhythm === 'afib')
+  const phase = beatPhase(time, rate)
+  const width = Math.min(0.082, Math.max(0.026, rate * 0.00058))
   let value = 0
-  if (rhythm === 'vtach') {
-    value = gaussian(phase, 0.32, 0.105) * 0.9 - gaussian(phase, 0.43, 0.09) * 0.42 + gaussian(phase, 0.67, 0.12) * 0.12
+  if (rhythm === 'afib') {
+    const irregularBeat = time * rate / 60 + 0.13 * Math.sin(time * rate / 60 * 2.7)
+    value = narrowComplex(fract(irregularBeat), width, false) + Math.sin(time * 43.1) * 0.025 + Math.sin(time * 61.7 + 1.2) * 0.018
+  } else if (rhythm === 'flutter') {
+    const atrialPhase = beatPhase(time, 300)
+    const sawtooth = (1 - 2 * atrialPhase) * 0.15
+    value = sawtooth + narrowComplex(phase, width, false)
+  } else if (rhythm === 'svt') {
+    value = narrowComplex(phase, width, false) + gaussian(phase, 0.43, 0.022) * 0.08
+  } else if (rhythm === 'vtach') {
+    value = broadComplex(phase, 0.35)
+  } else if (rhythm === 'torsades') {
+    const twist = Math.sin(time * Math.PI * 1.15)
+    const envelope = 0.18 + 0.82 * Math.abs(twist)
+    value = broadComplex(phase, 0.36) * envelope * (twist < 0 ? -1 : 1)
+  } else if (rhythm === 'junctional-escape') {
+    value = narrowComplex(phase, width, false) - gaussian(phase, 0.45, 0.025) * 0.11
+  } else if (rhythm === 'ventricular-escape') {
+    value = broadComplex(phase, 0.36) * 0.9
+  } else if (rhythm === 'aivr') {
+    const beatIndex = Math.floor(time * rate / 60)
+    value = beatIndex % 7 === 0 ? narrowComplex(phase, width) : broadComplex(phase, 0.36) * 0.9
+  } else if (rhythm === 'mobitz1' || rhythm === 'mobitz2') {
+    const ratio = rhythm === 'mobitz1' ? 3 : 2
+    const atrialRate = rate * ratio / (ratio - 1)
+    const atrialBeat = time * atrialRate / 60
+    const atrialIndex = Math.floor(atrialBeat)
+    const atrialPhase = fract(atrialBeat)
+    const conducted = rhythm === 'mobitz1' ? atrialIndex % ratio !== ratio - 1 : atrialIndex % ratio === 0
+    value = gaussian(atrialPhase, 0.13, 0.035) * 0.14
+    if (conducted) {
+      const progressiveDelay = rhythm === 'mobitz1' ? (atrialIndex % ratio) * 0.045 : 0
+      const qrsCenter = 0.39 + progressiveDelay
+      value += -gaussian(atrialPhase, qrsCenter - 0.025, width * 0.65) * 0.15 + gaussian(atrialPhase, qrsCenter, width) * 0.92 - gaussian(atrialPhase, qrsCenter + 0.025, width * 0.75) * 0.28 + gaussian(atrialPhase, qrsCenter + 0.27, 0.075) * 0.25
+    }
+  } else if (rhythm === 'complete-block') {
+    const atrialPhase = beatPhase(time, Math.max(75, rate * 2.2))
+    value = gaussian(atrialPhase, 0.17, 0.035) * 0.13 + broadComplex(phase, 0.36) * 0.85
+  } else if (rhythm === 'sinus-pause') {
+    const beatIndex = Math.floor(time * rate / 60)
+    value = beatIndex % 8 === 7 ? 0 : narrowComplex(phase, width)
   } else {
-    if (rhythm !== 'afib') value += gaussian(phase, 0.17, 0.035) * 0.12
-    const qrsWidth = Math.min(0.08, Math.max(0.022, rate * 0.035 / 60))
-    value -= gaussian(phase, 0.335, qrsWidth * 0.45) * 0.14
-    value += gaussian(phase, 0.365, qrsWidth) * 0.92
-    value -= gaussian(phase, 0.397, qrsWidth * 0.7) * 0.24
-    value += gaussian(phase, 0.65, 0.075) * 0.25
+    value = narrowComplex(phase, width)
   }
 
   const leadName = ['I', 'aVR', 'V1', 'V4', 'II', 'aVL', 'V2', 'V5', 'III', 'aVF', 'V3', 'V6'][leadIndex] ?? 'II'
@@ -60,7 +110,7 @@ function ecgSample(time: number, state: SimulationState, pattern?: ECGPattern, l
 function sample(kind: WaveKind, time: number, state: SimulationState) {
   if (kind === 'ecg') return ecgSample(time, state)
   if (kind === 'pressure') {
-    if (state.systolic === 0) return Math.sin(time * 2) * 0.01
+    if (state.systolic === 0 || !state.pulsePresent) return Math.sin(time * 2) * 0.002
     const phase = beatPhase(time, state.heartRate)
     const pulse = phase < 0.18 ? phase / 0.18 : Math.exp(-(phase - 0.18) * 3.2)
     const normalizedPulse = (pulse - 0.43) * 1.5
@@ -68,7 +118,7 @@ function sample(kind: WaveKind, time: number, state: SimulationState) {
     return -0.55 + normalizedPulse * Math.min(relativePulse, 1.35)
   }
   if (kind === 'pleth') {
-    if (state.spo2 === 0 || state.heartRate === 0) return Math.sin(time * 1.7) * 0.015
+    if (state.spo2 === 0 || state.heartRate === 0 || !state.pulsePresent) return Math.sin(time * 1.7) * 0.002
     const phase = beatPhase(time, state.heartRate)
     const upstroke = phase < 0.18 ? Math.pow(phase / 0.18, 1.8) : Math.exp(-(phase - 0.18) * 4.2)
     const notch = Math.exp(-Math.pow((phase - 0.38) / 0.035, 2)) * 0.11

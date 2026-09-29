@@ -10,6 +10,7 @@ const libraryPath = resolve(directory, '../data/ecg-patterns.json')
 const initialState = {
   heartRate: 85,
   rhythm: 'sinus',
+  pulsePresent: true,
   systolic: 110,
   diastolic: 70,
   spo2: 96,
@@ -19,7 +20,7 @@ const initialState = {
   selectedEcg: 'normal-sinus',
   showTwelveLead: false,
 }
-const rhythms = new Set(['sinus', 'bradycardia', 'tachycardia', 'afib', 'vtach', 'vfib', 'asystole'])
+const rhythms = new Set(['sinus', 'bradycardia', 'tachycardia', 'afib', 'svt', 'flutter', 'vtach', 'torsades', 'vfib', 'fine-vfib', 'asystole', 'junctional-escape', 'ventricular-escape', 'aivr', 'mobitz1', 'mobitz2', 'complete-block', 'sinus-pause'])
 const numericRanges = {
   heartRate: [0, 300],
   systolic: [0, 300],
@@ -120,6 +121,7 @@ io.on('connection', (socket) => {
       }
     }
     if (typeof patch.rhythm === 'string' && rhythms.has(patch.rhythm)) accepted.rhythm = patch.rhythm
+    if (typeof patch.pulsePresent === 'boolean') accepted.pulsePresent = patch.pulsePresent
     if (typeof patch.selectedEcg === 'string' && patch.selectedEcg.length <= 64) accepted.selectedEcg = patch.selectedEcg
     if (typeof patch.showTwelveLead === 'boolean') accepted.showTwelveLead = patch.showTwelveLead
     if (Object.keys(accepted).length === 0) return

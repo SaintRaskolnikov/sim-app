@@ -189,6 +189,7 @@ a { color: inherit; }
 .monitor-sign-out { border-color: #39463f; color: #9eaea3; }
 .monitor-warning { padding: 10px 0 12px; color: #6d7c73; font: 8px var(--mono); letter-spacing: .08em; }
 .monitor-warning span { padding: 0 6px; color: #cb8e5a; }
+.pulseless-flag { margin-left: 12px; padding: 4px 6px; border: 1px solid #ad5b48; border-radius: 3px; background: #301a15; color: #f09976; font: 8px var(--mono); letter-spacing: .04em; }
 .monitor-readouts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
 .monitor-metric { min-height: 114px; padding: 12px 15px 10px; border: 1px solid #1c2a24; border-radius: 3px; background: #0c1310; }
 .metric-label { display: flex; align-items: center; gap: 7px; color: #96a69c; font: 9px var(--mono); letter-spacing: .02em; }
@@ -217,6 +218,7 @@ a { color: inherit; }
 .monitor-footer > div { display: flex; flex-direction: column; gap: 5px; }
 .footer-label { color: #728178; font: 8px var(--mono); letter-spacing: .06em; }
 .monitor-footer strong { color: #c6d4cb; font: 10px var(--mono); }
+.monitor-footer > div:nth-child(2) strong { color: #8cb89a; }
 .monitor-disclaimer { margin-left: auto; color: #59695f; font: 8px var(--mono); }
 .monitor-12lead-panel { padding: 14px; border: 1px solid #1c2a24; border-radius: 3px; background: #0c1310; }
 .monitor-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 1px 0 12px; }
@@ -228,6 +230,14 @@ a { color: inherit; }
 @keyframes live-pulse { 50% { opacity: .48; } }
 
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.pulse-control { display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 61px; margin-bottom: 10px; padding: 10px 12px; border: 1px solid #dce4dc; border-radius: 6px; background: var(--white); }
+.pulse-control-copy { display: flex; align-items: center; gap: 10px; }
+.pulse-indicator { width: 9px; height: 9px; flex: 0 0 auto; border-radius: 50%; }
+.pulse-indicator.present { background: #55a879; box-shadow: 0 0 0 4px #e2f0e5; }
+.pulse-indicator.absent { background: #cb694f; box-shadow: 0 0 0 4px #f7e7e1; }
+.pulse-control-copy strong, .pulse-control-copy small { display: block; }
+.pulse-control-copy strong { color: #36483d; font-size: 11px; }
+.pulse-control-copy small { margin-top: 4px; color: #839087; font-size: 9px; }
 
 .auth-shell { display: grid; min-height: 100vh; place-items: center; padding: 28px; background: #eaf0e9; }
 .auth-panel { width: min(100%, 430px); padding: 31px; border: 1px solid #d6e0d7; border-radius: 7px; background: #fbfcf9; box-shadow: 0 20px 70px #263a2d14; }

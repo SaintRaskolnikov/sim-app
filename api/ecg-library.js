@@ -1,6 +1,6 @@
 import { adminClient } from '../server/supabaseAdmin.js'
 
-const allowedRhythms = new Set(['sinus', 'bradycardia', 'tachycardia', 'afib', 'vtach', 'vfib', 'asystole'])
+const allowedRhythms = new Set(['sinus', 'bradycardia', 'tachycardia', 'afib', 'svt', 'flutter', 'vtach', 'torsades', 'vfib', 'fine-vfib', 'asystole', 'junctional-escape', 'ventricular-escape', 'aivr', 'mobitz1', 'mobitz2', 'complete-block', 'sinus-pause'])
 
 function fromRow(row) {
   return {

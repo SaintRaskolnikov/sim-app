@@ -15,15 +15,23 @@ const rhythmName = (id: string) => rhythms.find((rhythm) => rhythm.id === id)?.t
 const presets: { name: string; icon: typeof Siren; tone: string; patch: StatePatch }[] = [
   {
     name: 'Cardiac arrest', icon: Siren, tone: 'coral',
-    patch: { heartRate: 0, rhythm: 'vfib', selectedEcg: 'vfib', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 48, respiratoryRate: 0, etco2: 8 },
+    patch: { heartRate: 0, rhythm: 'vfib', pulsePresent: false, selectedEcg: 'vfib', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 48, respiratoryRate: 0, etco2: 8 },
+  },
+  {
+    name: 'Pulseless VT', icon: HeartPulse, tone: 'coral',
+    patch: { heartRate: 180, rhythm: 'vtach', pulsePresent: false, selectedEcg: 'vtach', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 55, respiratoryRate: 0, etco2: 8 },
+  },
+  {
+    name: 'PEA · organized', icon: Activity, tone: 'amber',
+    patch: { heartRate: 72, rhythm: 'sinus', pulsePresent: false, selectedEcg: 'sinus', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 65, respiratoryRate: 12, etco2: 12 },
   },
   {
     name: 'Hypovolemic shock', icon: Activity, tone: 'amber',
-    patch: { heartRate: 128, rhythm: 'sinus', selectedEcg: 'sinus', showTwelveLead: false, systolic: 78, diastolic: 48, spo2: 93, respiratoryRate: 28, etco2: 22 },
+    patch: { heartRate: 128, rhythm: 'sinus', pulsePresent: true, selectedEcg: 'sinus', showTwelveLead: false, systolic: 78, diastolic: 48, spo2: 93, respiratoryRate: 28, etco2: 22 },
   },
   {
     name: 'Septic shock', icon: HeartPulse, tone: 'teal',
-    patch: { heartRate: 124, rhythm: 'sinus', selectedEcg: 'sinus', showTwelveLead: false, systolic: 84, diastolic: 52, spo2: 94, respiratoryRate: 30, etco2: 25, temperature: 39.2 },
+    patch: { heartRate: 124, rhythm: 'sinus', pulsePresent: true, selectedEcg: 'sinus', showTwelveLead: false, systolic: 84, diastolic: 52, spo2: 94, respiratoryRate: 30, etco2: 25, temperature: 39.2 },
   },
 ]
 
@@ -123,7 +131,7 @@ function MonitorView({ state, status, sessionId, patterns, tutorConnected, updat
         <div className="monitor-actions"><ConnectionBadge status={status} /><PairingQr controllerUrl={controllerUrl} sessionId={sessionId} tutorConnected={tutorConnected} /><button className="monitor-mode-button" onClick={() => update({ showTwelveLead: !state.showTwelveLead })}>{state.showTwelveLead ? <Activity size={16} /> : <Radio size={16} />}{state.showTwelveLead ? 'Bedside' : '12-lead'}</button>{signOut && <button className="monitor-mode-button monitor-sign-out" onClick={signOut}><LogOut size={14} />Sign out</button>}</div>
       </header>
 
-      <div className="monitor-warning">SIMULATION ONLY <span>·</span> NOT FOR CLINICAL USE</div>
+      <div className="monitor-warning">SIMULATION ONLY <span>·</span> NOT FOR CLINICAL USE {!state.pulsePresent && <strong className="pulseless-flag">NO PALPABLE PULSE · ECG RATE IS NOT A PULSE RATE</strong>}</div>
 
       <section className="monitor-readouts" aria-label="Patient vital signs">
         <div className="monitor-metric hr-metric"><div className="metric-label"><span className="metric-dot" />ECG <span className="metric-unit">bpm</span></div><div className="metric-value">{state.heartRate}<small>{rhythmName(state.rhythm)}</small></div></div>
@@ -142,12 +150,12 @@ function MonitorView({ state, status, sessionId, patterns, tutorConnected, updat
         <section className="wave-stack" aria-label="Live physiological waveforms">
           <div className="monitor-wave-row ecg-wave-row"><div className="wave-label"><strong>II</strong><span>ECG</span></div><Waveform kind="ecg" color="#65e58a" state={state} /><div className="wave-reading"><strong>{state.heartRate}</strong><span>bpm</span></div></div>
           <div className="monitor-wave-row pressure-wave-row"><div className="wave-label"><strong>ART</strong><span>mmHg</span></div><Waveform kind="pressure" color="#f3d353" state={state} /><div className="wave-reading"><strong>{state.systolic}/{state.diastolic}</strong><span>MAP {meanArterialPressure(state.systolic, state.diastolic)}</span></div></div>
-          <div className="monitor-wave-row pleth-wave-row"><div className="wave-label"><strong>PLETH</strong><span>SpO₂</span></div><Waveform kind="pleth" color="#65c7f2" state={state} /><div className="wave-reading"><strong>{state.spo2}<small>%</small></strong><span>pulse</span></div></div>
+          <div className="monitor-wave-row pleth-wave-row"><div className="wave-label"><strong>PLETH</strong><span>SpO₂</span></div><Waveform kind="pleth" color="#65c7f2" state={state} /><div className="wave-reading"><strong>{state.spo2}<small>%</small></strong><span>{state.pulsePresent ? 'pulse' : 'no pulse'}</span></div></div>
           <div className="monitor-wave-row capno-wave-row"><div className="wave-label"><strong>CO₂</strong><span>mmHg</span></div><Waveform kind="capno" color="#d88bf2" state={state} /><div className="wave-reading"><strong>{state.etco2}</strong><span>RR {state.respiratoryRate}</span></div></div>
         </section>
       )}
 
-      <footer className="monitor-footer"><div><span className="footer-label">TEMP</span><strong>{state.temperature.toFixed(1)} °C</strong></div><div><span className="footer-label">RHYTHM</span><strong>{rhythmName(state.rhythm)}</strong></div><div><span className="footer-label">ECG PATTERN</span><strong>{selectedPattern.title}</strong></div><span className="monitor-disclaimer">For simulation and training only</span></footer>
+      <footer className="monitor-footer"><div><span className="footer-label">TEMP</span><strong>{state.temperature.toFixed(1)} °C</strong></div><div><span className="footer-label">PULSE</span><strong>{state.pulsePresent ? 'PRESENT' : 'ABSENT'}</strong></div><div><span className="footer-label">RHYTHM</span><strong>{rhythmName(state.rhythm)}</strong></div><div><span className="footer-label">ECG PATTERN</span><strong>{selectedPattern.title}</strong></div><span className="monitor-disclaimer">For simulation and training only</span></footer>
     </main>
   )
 }
@@ -214,7 +222,8 @@ function ControlView({ state, status, sessionId, patterns, update, joinSession }
         </section>
 
         <section className="control-section rhythm-section"><div className="section-heading"><div><span className="section-index">02</span><h2>Rhythm</h2></div><span>{rhythmName(state.rhythm)}</span></div>
-          <div className="rhythm-grid">{rhythms.map((rhythm) => <button key={rhythm.id} className={state.rhythm === rhythm.id ? 'selected' : ''} onClick={() => update({ rhythm: rhythm.id as SimulationState['rhythm'], heartRate: rhythm.suggestedRate ?? state.heartRate, selectedEcg: rhythm.id, showTwelveLead: false })}><span className="rhythm-led" />{rhythm.title}</button>)}</div>
+          <div className="pulse-control"><div className="pulse-control-copy"><span className={`pulse-indicator ${state.pulsePresent ? 'present' : 'absent'}`} /><div><strong>Palpable pulse</strong><small>{state.pulsePresent ? 'Pulse present' : 'No pulse'} · independent of ECG rhythm</small></div></div><button className={`toggle ${state.pulsePresent ? 'on' : ''}`} role="switch" aria-checked={state.pulsePresent} aria-label="Palpable pulse" onClick={() => update({ pulsePresent: !state.pulsePresent })}><span /></button></div>
+          <div className="rhythm-grid">{rhythms.map((rhythm) => <button key={rhythm.id} className={state.rhythm === rhythm.rhythm ? 'selected' : ''} onClick={() => update({ rhythm: rhythm.rhythm, heartRate: rhythm.suggestedRate ?? state.heartRate, pulsePresent: ['vfib', 'fine-vfib', 'asystole'].includes(rhythm.id) ? false : state.pulsePresent, selectedEcg: rhythm.id, showTwelveLead: false })}><span className="rhythm-led" />{rhythm.title}</button>)}</div>
         </section>
 
         <section className="control-section preset-section"><div className="section-heading"><div><span className="section-index">03</span><h2>Scenario presets</h2></div><span>Simulation states</span></div>
@@ -260,7 +269,7 @@ function LibraryView({ state, sessionId, status, patterns, update, savePattern, 
   }
   const choosePattern = (id: string) => {
     const pattern = findPattern(id, patterns)
-    update({ selectedEcg: id, rhythm: pattern.rhythm, heartRate: pattern.suggestedRate ?? state.heartRate, showTwelveLead: pattern.category === '12-lead' })
+    update({ selectedEcg: id, rhythm: pattern.rhythm, heartRate: pattern.suggestedRate ?? state.heartRate, pulsePresent: ['vfib', 'fine-vfib', 'asystole'].includes(pattern.rhythm) ? false : state.pulsePresent, showTwelveLead: pattern.category === '12-lead' })
   }
   const counts = {
     all: patterns.length,
@@ -272,9 +281,20 @@ function LibraryView({ state, sessionId, status, patterns, update, savePattern, 
     { id: 'bradycardia', label: 'Sinus bradycardia' },
     { id: 'tachycardia', label: 'Sinus tachycardia' },
     { id: 'afib', label: 'Atrial fibrillation' },
+    { id: 'svt', label: 'Regular narrow SVT' },
+    { id: 'flutter', label: 'Atrial flutter' },
     { id: 'vtach', label: 'Wide-complex tachycardia' },
+    { id: 'torsades', label: 'Polymorphic VT / torsades' },
     { id: 'vfib', label: 'Ventricular fibrillation' },
+    { id: 'fine-vfib', label: 'Fine ventricular fibrillation' },
     { id: 'asystole', label: 'Asystole' },
+    { id: 'junctional-escape', label: 'Junctional escape' },
+    { id: 'ventricular-escape', label: 'Ventricular escape' },
+    { id: 'aivr', label: 'Accelerated idioventricular' },
+    { id: 'mobitz1', label: 'Mobitz I block' },
+    { id: 'mobitz2', label: 'Mobitz II block' },
+    { id: 'complete-block', label: 'Complete heart block' },
+    { id: 'sinus-pause', label: 'Sinus pause' },
     { id: 'stemi-anterior', label: 'Anterior ST elevation' },
     { id: 'stemi-inferior', label: 'Inferior ST elevation' },
     { id: 'stemi-lateral', label: 'Lateral ST elevation' },
