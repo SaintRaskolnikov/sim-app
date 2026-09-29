@@ -23,7 +23,7 @@ Vercel serves the Vite app and its `/api` serverless functions. Supabase provide
 4. Import the repository into Vercel and deploy with the included [`vercel.json`](vercel.json).
 5. Disable Vercel SSO deployment protection so tutors can open the public QR link. The `/monitor` route then requires a Supabase account; `/control` remains available to anyone holding its session QR.
 
-The first connected client seeds the ECG table with the built-in emergency patterns. Session rows are created as monitors are opened. The catalog is shared across simulation sessions; custom entries can use an optional public HTTPS image URL.
+The first connected client seeds the ECG and scenario-preset tables with built-in entries. Session rows are created as monitors are opened. The ECG catalog and editable presets are shared across simulation sessions; custom ECG entries can use an optional public HTTPS image URL.
 
 Anonymous clients can read ECG catalog rows for realtime updates. Session and catalog writes go through Vercel Functions with the server-only service-role key. Session IDs in pairing URLs act as bearer links: anyone holding a QR can control that simulation session. The monitor UI requires an email/password account, while tutor controls do not. Keep this deployment limited to synthetic training data.
 

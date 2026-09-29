@@ -2,8 +2,8 @@ import { useState, type FormEvent } from 'react'
 import { Activity, LogIn, UserRoundPlus } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
-export function MonitorAccess({ configured, loading }: { configured: boolean; loading: boolean }) {
-  const [mode, setMode] = useState<'sign-in' | 'register'>('sign-in')
+export function MonitorAccess({ configured, loading, initialMode = 'sign-in' }: { configured: boolean; loading: boolean; initialMode?: 'sign-in' | 'register' }) {
+  const [mode, setMode] = useState<'sign-in' | 'register'>(initialMode)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
@@ -18,7 +18,7 @@ export function MonitorAccess({ configured, loading }: { configured: boolean; lo
     setError('')
     const result = mode === 'sign-in'
       ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      : await supabase.auth.signUp({ email: email.trim(), password })
+      : await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: `${window.location.origin}/login` } })
     setSubmitting(false)
     if (result.error) {
       setError(result.error.message)
@@ -34,12 +34,10 @@ export function MonitorAccess({ configured, loading }: { configured: boolean; lo
           <span className="brand-mark"><Activity size={19} /></span>
           <span><strong>pulse<span>/</span>sim</strong><small>SIMULATION SUITE</small></span>
         </a>
-        <div className="auth-title"><span className="eyebrow">MONITOR ACCESS <span className="heading-rule" /></span><h1>{configured ? 'Sign in to monitor' : 'Monitor setup required'}</h1>
-          <p>{configured ? 'Use your registered account to open this simulation display.' : 'Connect a Supabase project to enable monitor accounts.'}</p>
+        <div className="auth-title"><span className="eyebrow">MONITOR ACCESS <span className="heading-rule" /></span><h1>{mode === 'register' ? 'Create an account' : 'Sign in to monitor'}</h1>
+          <p>{mode === 'register' ? 'Register an account to open a simulation monitor.' : 'Use your account to open a simulation monitor.'}</p>
         </div>
-        {!configured ? (
-          <div className="auth-setup-message">Supabase sign-in is not configured for this deployment. The tutor QR route remains available without an account.</div>
-        ) : loading ? (
+        {loading ? (
           <div className="auth-loading"><span className="auth-spinner" />Checking account…</div>
         ) : (
           <>
@@ -52,7 +50,8 @@ export function MonitorAccess({ configured, loading }: { configured: boolean; lo
               <label>Password<input type="password" autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'} minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" /></label>
               {error && <p className="auth-error" role="alert">{error}</p>}
               {message && <p className="auth-message" role="status">{message}</p>}
-              <button className="auth-submit" type="submit" disabled={submitting}>{submitting ? 'Please wait…' : mode === 'sign-in' ? 'Sign in' : 'Create monitor account'}</button>
+              {!configured && <p className="auth-setup-message">Account access is not configured yet. Connect Supabase to enable sign-in and registration.</p>}
+              <button className="auth-submit" type="submit" disabled={!configured || submitting}>{submitting ? 'Please wait…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}</button>
             </form>
           </>
         )}

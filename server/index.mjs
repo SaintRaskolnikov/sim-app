@@ -7,6 +7,7 @@ import { Server } from 'socket.io'
 const directory = dirname(fileURLToPath(import.meta.url))
 const storagePath = resolve(directory, '../data/sessions.json')
 const libraryPath = resolve(directory, '../data/ecg-patterns.json')
+const presetsPath = resolve(directory, '../data/scenario-presets.json')
 const initialState = {
   heartRate: 85,
   rhythm: 'sinus',
@@ -32,6 +33,7 @@ const numericRanges = {
 }
 const sessions = new Map()
 let ecgLibrary = []
+let scenarioPresets = []
 
 try {
   const saved = JSON.parse(await readFile(storagePath, 'utf8'))
@@ -46,6 +48,12 @@ try {
   await mkdir(dirname(libraryPath), { recursive: true })
 }
 
+try {
+  scenarioPresets = JSON.parse(await readFile(presetsPath, 'utf8'))
+} catch {
+  await mkdir(dirname(presetsPath), { recursive: true })
+}
+
 const persist = async () => {
   await mkdir(dirname(storagePath), { recursive: true })
   await writeFile(storagePath, JSON.stringify(Object.fromEntries(sessions), null, 2))
@@ -54,6 +62,11 @@ const persist = async () => {
 const persistLibrary = async () => {
   await mkdir(dirname(libraryPath), { recursive: true })
   await writeFile(libraryPath, JSON.stringify(ecgLibrary, null, 2))
+}
+
+const persistScenarioPresets = async () => {
+  await mkdir(dirname(presetsPath), { recursive: true })
+  await writeFile(presetsPath, JSON.stringify(scenarioPresets, null, 2))
 }
 
 const server = createServer()
@@ -67,6 +80,19 @@ async function publishTutorPresence(sessionId) {
 
 io.on('connection', (socket) => {
   socket.on('get-library', () => socket.emit('library-state', ecgLibrary))
+  socket.on('get-scenario-presets', () => socket.emit('scenario-presets-state', scenarioPresets))
+  socket.on('save-scenario-presets', async (requestedPresets) => {
+    if (!Array.isArray(requestedPresets) || requestedPresets.length > 100) return
+    const safePresets = requestedPresets.filter((preset) =>
+      preset && typeof preset.id === 'string' && preset.id.length <= 64 &&
+      typeof preset.name === 'string' && preset.name.trim().length > 0 && preset.name.length <= 80 &&
+      ['coral', 'amber', 'teal'].includes(preset.tone) && ['siren', 'heart', 'activity'].includes(preset.icon) &&
+      preset.patch && typeof preset.patch === 'object'
+    )
+    scenarioPresets = safePresets
+    await persistScenarioPresets()
+    io.emit('scenario-presets-state', scenarioPresets)
+  })
   socket.on('save-library', async (requestedPatterns) => {
     if (!Array.isArray(requestedPatterns) || requestedPatterns.length > 200) return
     const safePatterns = requestedPatterns.filter((pattern) =>

@@ -13,6 +13,7 @@ dist-ssr
 *.local
 /data/sessions.json
 /data/ecg-patterns.json
+/data/scenario-presets.json
 .env*
 !.env.example
 tmp/

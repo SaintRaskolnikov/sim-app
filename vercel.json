@@ -3,6 +3,8 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/login", "destination": "/" },
+    { "source": "/register", "destination": "/" },
     { "source": "/monitor", "destination": "/" },
     { "source": "/control", "destination": "/" },
     { "source": "/ekg-library", "destination": "/" }

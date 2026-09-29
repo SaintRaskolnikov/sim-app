@@ -6,34 +6,16 @@ import { findPattern, rhythms, type ECGMorphology, type ECGPattern } from './dat
 import { useECGLibrary } from './hooks/useECGLibrary'
 import { useSimulationSession } from './hooks/useSimulationSession'
 import { useMonitorAuth } from './hooks/useMonitorAuth'
+import { useScenarioPresets } from './hooks/useScenarioPresets'
 import { MonitorAccess } from './components/MonitorAccess'
+import { ScenarioPresetEditor } from './components/ScenarioPresetEditor'
+import type { PresetIconId, ScenarioPreset } from './data/scenarioPresets'
 import { TwelveLeadCanvas, Waveform } from './components/Waveform'
 import { meanArterialPressure, type SimulationState, type StatePatch } from './types'
 
 const rhythmName = (id: string) => rhythms.find((rhythm) => rhythm.id === id)?.title ?? 'Sinus rhythm'
 
-const presets: { name: string; icon: typeof Siren; tone: string; patch: StatePatch }[] = [
-  {
-    name: 'Cardiac arrest', icon: Siren, tone: 'coral',
-    patch: { heartRate: 0, rhythm: 'vfib', pulsePresent: false, selectedEcg: 'vfib', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 48, respiratoryRate: 0, etco2: 8 },
-  },
-  {
-    name: 'Pulseless VT', icon: HeartPulse, tone: 'coral',
-    patch: { heartRate: 180, rhythm: 'vtach', pulsePresent: false, selectedEcg: 'vtach', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 55, respiratoryRate: 0, etco2: 8 },
-  },
-  {
-    name: 'PEA · organized', icon: Activity, tone: 'amber',
-    patch: { heartRate: 72, rhythm: 'sinus', pulsePresent: false, selectedEcg: 'sinus', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 65, respiratoryRate: 12, etco2: 12 },
-  },
-  {
-    name: 'Hypovolemic shock', icon: Activity, tone: 'amber',
-    patch: { heartRate: 128, rhythm: 'sinus', pulsePresent: true, selectedEcg: 'sinus', showTwelveLead: false, systolic: 78, diastolic: 48, spo2: 93, respiratoryRate: 28, etco2: 22 },
-  },
-  {
-    name: 'Septic shock', icon: HeartPulse, tone: 'teal',
-    patch: { heartRate: 124, rhythm: 'sinus', pulsePresent: true, selectedEcg: 'sinus', showTwelveLead: false, systolic: 84, diastolic: 52, spo2: 94, respiratoryRate: 30, etco2: 25, temperature: 39.2 },
-  },
-]
+const presetIcons: Record<PresetIconId, typeof Siren> = { siren: Siren, heart: HeartPulse, activity: Activity }
 
 function ConnectionBadge({ status }: { status: 'connecting' | 'connected' | 'offline' }) {
   const Icon = status === 'connected' ? Wifi : WifiOff
@@ -186,15 +168,34 @@ function NumberControl({ label, value, unit, step, min, max, digits = 0, onChang
   )
 }
 
-function ControlView({ state, status, sessionId, patterns, update, joinSession }: {
+function ControlView({ state, status, sessionId, patterns, presets, update, joinSession, savePreset, deletePreset }: {
   state: SimulationState
   status: 'connecting' | 'connected' | 'offline'
   sessionId: string
   patterns: ECGPattern[]
+  presets: ScenarioPreset[]
   update: (patch: StatePatch) => void
   joinSession: (id: string) => void
+  savePreset: (preset: ScenarioPreset) => void
+  deletePreset: (id: string) => void
 }) {
   const [sessionDraft, setSessionDraft] = useState(sessionId)
+  const [editingPreset, setEditingPreset] = useState<ScenarioPreset | null>(null)
+  const [editingExisting, setEditingExisting] = useState(false)
+  const startNewPreset = () => {
+    setEditingExisting(false)
+    setEditingPreset({
+      id: `custom-preset-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      name: 'New scenario',
+      tone: 'teal',
+      icon: 'activity',
+      patch: { ...state, showTwelveLead: false },
+    })
+  }
+  const startPresetEdit = (preset: ScenarioPreset) => {
+    setEditingExisting(true)
+    setEditingPreset({ ...preset, patch: { ...preset.patch } })
+  }
 
   return (
     <div className="workspace-shell">
@@ -226,16 +227,18 @@ function ControlView({ state, status, sessionId, patterns, update, joinSession }
           <div className="rhythm-grid">{rhythms.map((rhythm) => <button key={rhythm.id} className={state.rhythm === rhythm.rhythm ? 'selected' : ''} onClick={() => update({ rhythm: rhythm.rhythm, heartRate: rhythm.suggestedRate ?? state.heartRate, pulsePresent: ['vfib', 'fine-vfib', 'asystole'].includes(rhythm.id) ? false : state.pulsePresent, selectedEcg: rhythm.id, showTwelveLead: false })}><span className="rhythm-led" />{rhythm.title}</button>)}</div>
         </section>
 
-        <section className="control-section preset-section"><div className="section-heading"><div><span className="section-index">03</span><h2>Scenario presets</h2></div><span>Simulation states</span></div>
-          <div className="preset-grid">{presets.map(({ name, icon: Icon, tone, patch }) => <button key={name} className={`preset-button ${tone}`} onClick={() => update(patch)}><span className="preset-icon"><Icon size={19} /></span><span>{name}</span><span className="preset-apply">Apply</span></button>)}</div>
+        <section className="control-section preset-section"><div className="section-heading"><div><span className="section-index">03</span><h2>Scenario presets</h2></div><button className="preset-add-button" onClick={startNewPreset}><Plus size={15} />Add preset</button></div>
+          <div className="preset-grid">{presets.map((preset) => { const Icon = presetIcons[preset.icon]; return <div key={preset.id} className="preset-tile"><button className={`preset-button ${preset.tone}`} onClick={() => update(preset.patch)}><span className="preset-icon"><Icon size={19} /></span><span>{preset.name}</span><span className="preset-apply">Apply</span></button><button className="pattern-edit preset-edit" aria-label={`Edit ${preset.name}`} onClick={() => startPresetEdit(preset)}><Pencil size={14} /></button></div> })}</div>
         </section>
 
         <section className="control-section display-section"><div className="section-heading"><div><span className="section-index">04</span><h2>Display</h2></div><span>Monitor output</span></div>
           <div className="display-control"><div className="display-copy"><span className="display-icon"><Radio size={18} /></span><div><strong>12-lead ECG</strong><small>{findPattern(state.selectedEcg, patterns).title}</small></div></div><button className={`toggle ${state.showTwelveLead ? 'on' : ''}`} role="switch" aria-checked={state.showTwelveLead} aria-label="Show 12-lead ECG" onClick={() => update({ showTwelveLead: !state.showTwelveLead })}><span /></button></div>
+          <div className="ecg-quick-grid">{patterns.filter((pattern) => pattern.category === '12-lead').map((pattern) => <button key={pattern.id} className={state.selectedEcg === pattern.id ? 'selected' : ''} onClick={() => update({ selectedEcg: pattern.id, rhythm: pattern.rhythm, heartRate: pattern.suggestedRate ?? state.heartRate, pulsePresent: ['vfib', 'fine-vfib', 'asystole'].includes(pattern.rhythm) ? false : state.pulsePresent, showTwelveLead: true })}><span>{pattern.territory ?? '12-LEAD'}</span><strong>{pattern.title}</strong></button>)}</div>
           <a className="library-link" href={`/ekg-library?session=${encodeURIComponent(sessionId)}`}>Choose a preloaded ECG <ArrowUp size={14} /></a>
         </section>
         <p className="training-note"><span>!</span> Simulation and training use only. Not for real patient monitoring or clinical decision-making.</p>
       </main>
+      {editingPreset && <ScenarioPresetEditor key={editingPreset.id} preset={editingPreset} patterns={patterns} canDelete={editingExisting && editingPreset.id.startsWith('custom-preset-')} onSave={(preset) => { savePreset(preset); setEditingPreset(null) }} onDelete={(id) => { deletePreset(id); setEditingPreset(null) }} onClose={() => setEditingPreset(null)} />}
     </div>
   )
 }
@@ -337,17 +340,24 @@ function LibraryView({ state, sessionId, status, patterns, update, savePattern, 
 }
 
 function App() {
-  const path = window.location.pathname.replace(/\/$/, '') || '/control'
+  const path = window.location.pathname.replace(/\/$/, '') || '/'
   const isMonitorRoute = path === '/monitor'
-  const authRequired = isMonitorRoute && import.meta.env.PROD
+  const isAuthRoute = path === '/' || path === '/login' || path === '/register'
+  const initialAuthMode = path === '/register' ? 'register' : 'sign-in'
+  const authRequired = (isMonitorRoute || isAuthRoute) && import.meta.env.PROD
   const auth = useMonitorAuth(authRequired)
   const canConnect = !authRequired || auth.authenticated
   const session = useSimulationSession(canConnect)
   const library = useECGLibrary(canConnect)
-  if (authRequired && !auth.authenticated) return <MonitorAccess configured={auth.configured} loading={auth.loading} />
+  const scenarioPresets = useScenarioPresets(canConnect)
+  useEffect(() => {
+    if (isAuthRoute && auth.authenticated) window.location.replace('/monitor')
+  }, [auth.authenticated, isAuthRoute])
+  if (authRequired && !auth.authenticated) return <MonitorAccess configured={auth.configured} loading={auth.loading} initialMode={initialAuthMode} />
   if (isMonitorRoute) return <MonitorView {...session} patterns={library.patterns} signOut={authRequired ? auth.signOut : undefined} />
   if (path === '/ekg-library') return <LibraryView {...session} patterns={library.patterns} savePattern={library.savePattern} deletePattern={library.deletePattern} />
-  return <ControlView {...session} patterns={library.patterns} />
+  if (isAuthRoute) return <MonitorAccess configured={auth.configured} loading={auth.loading} initialMode={initialAuthMode} />
+  return <ControlView {...session} patterns={library.patterns} presets={scenarioPresets.presets} savePreset={scenarioPresets.savePreset} deletePreset={scenarioPresets.deletePreset} />
 }
 
 export default App
