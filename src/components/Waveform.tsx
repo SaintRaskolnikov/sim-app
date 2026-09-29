@@ -35,9 +35,10 @@ function ecgSample(time: number, state: SimulationState, pattern?: ECGPattern, l
     value = gaussian(phase, 0.32, 0.105) * 0.9 - gaussian(phase, 0.43, 0.09) * 0.42 + gaussian(phase, 0.67, 0.12) * 0.12
   } else {
     if (rhythm !== 'afib') value += gaussian(phase, 0.17, 0.035) * 0.12
-    value -= gaussian(phase, 0.335, 0.014) * 0.14
-    value += gaussian(phase, 0.365, rhythm === 'bradycardia' ? 0.022 : 0.014) * 0.92
-    value -= gaussian(phase, 0.397, 0.019) * 0.24
+    const qrsWidth = Math.min(0.08, Math.max(0.022, rate * 0.035 / 60))
+    value -= gaussian(phase, 0.335, qrsWidth * 0.45) * 0.14
+    value += gaussian(phase, 0.365, qrsWidth) * 0.92
+    value -= gaussian(phase, 0.397, qrsWidth * 0.7) * 0.24
     value += gaussian(phase, 0.65, 0.075) * 0.25
   }
 
@@ -120,7 +121,8 @@ export function Waveform({ kind, color, state, height = 110 }: WaveformProps) {
       context.beginPath()
       const now = performance.now() / 1000
       const maxAmplitude = canvasHeight * 0.36
-      for (let x = 0; x <= width; x += 2) {
+      const sampleStep = kind === 'ecg' ? 0.5 : 2
+      for (let x = 0; x <= width; x += sampleStep) {
         const sampleTime = now - (width - x) / 52
         const value = sample(kind, sampleTime, state)
         const y = canvasHeight / 2 - value * maxAmplitude

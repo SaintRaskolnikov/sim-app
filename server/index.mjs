@@ -57,6 +57,12 @@ const persistLibrary = async () => {
 
 const server = createServer()
 const io = new Server(server, { path: '/socket.io' })
+const tutorRoom = (sessionId) => `${sessionId}:tutors`
+
+async function publishTutorPresence(sessionId) {
+  const tutors = await io.in(tutorRoom(sessionId)).fetchSockets()
+  io.to(sessionId).emit('tutor-presence', { connected: tutors.length > 0 })
+}
 
 io.on('connection', (socket) => {
   socket.on('get-library', () => socket.emit('library-state', ecgLibrary))
@@ -75,16 +81,32 @@ io.on('connection', (socket) => {
     io.emit('library-state', ecgLibrary)
   })
 
-  socket.on('join-session', async (requestedId) => {
-    const sessionId = String(requestedId || 'sim-01').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24) || 'sim-01'
-    if (socket.data.sessionId) socket.leave(socket.data.sessionId)
+  socket.on('join-session', async (request) => {
+    const details = request && typeof request === 'object' ? request : { id: request }
+    const sessionId = String(details.id || 'sim-01').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 24) || 'sim-01'
+    const role = details.role === 'monitor' ? 'monitor' : 'tutor'
+    if (socket.data.sessionId) {
+      const previousSessionId = socket.data.sessionId
+      socket.leave(previousSessionId)
+      socket.leave(tutorRoom(previousSessionId))
+      if (socket.data.role === 'tutor') await publishTutorPresence(previousSessionId)
+    }
     socket.data.sessionId = sessionId
+    socket.data.role = role
     socket.join(sessionId)
+    if (role === 'tutor') socket.join(tutorRoom(sessionId))
     if (!sessions.has(sessionId)) {
       sessions.set(sessionId, { ...initialState })
       await persist()
     }
     socket.emit('session-state', sessions.get(sessionId))
+    await publishTutorPresence(sessionId)
+  })
+
+  socket.on('disconnecting', () => {
+    if (!socket.data.sessionId || socket.data.role !== 'tutor') return
+    const tutors = io.sockets.adapter.rooms.get(tutorRoom(socket.data.sessionId))
+    io.to(socket.data.sessionId).emit('tutor-presence', { connected: (tutors?.size ?? 0) > 1 })
   })
 
   socket.on('update-state', async (patch) => {

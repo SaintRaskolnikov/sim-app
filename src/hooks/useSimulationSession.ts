@@ -24,9 +24,11 @@ export function useSimulationSession() {
   const [sessionId, setSessionId] = useState(getInitialSessionId)
   const [state, setState] = useState<SimulationState>(INITIAL_STATE)
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
+  const [tutorConnected, setTutorConnected] = useState(false)
   const socketRef = useRef<Socket | null>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
   const stateRef = useRef(state)
+  const role = window.location.pathname === '/monitor' ? 'monitor' : 'tutor'
 
   const applyState = (nextState: SimulationState) => {
     stateRef.current = nextState
@@ -37,15 +39,21 @@ export function useSimulationSession() {
     const client = supabase
     if (client && import.meta.env.PROD) {
       let active = true
-      const channel = client.channel(`session:${sessionId}`)
+      const presenceKey = `${role}-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`
+      const channel = client.channel(`session:${sessionId}`, { config: { presence: { key: presenceKey } } })
         .on('broadcast', { event: 'state' }, ({ payload }) => {
           if (payload?.state) applyState(payload.state as SimulationState)
+        })
+        .on('presence', { event: 'sync' }, () => {
+          const participants = Object.values(channel.presenceState()).flat() as Array<{ role?: string }>
+          setTutorConnected(participants.some((participant) => participant.role === 'tutor'))
         })
       channelRef.current = channel
       channel.subscribe(async (channelStatus) => {
         if (!active) return
         if (channelStatus === 'SUBSCRIBED') {
           setStatus('connected')
+          void channel.track({ role })
           const response = await fetch(`/api/sessions?id=${encodeURIComponent(sessionId)}`)
           if (!active) return
           if (!response.ok) {
@@ -65,6 +73,7 @@ export function useSimulationSession() {
           }
         } else if (channelStatus === 'CHANNEL_ERROR' || channelStatus === 'TIMED_OUT') {
           setStatus('offline')
+          setTutorConnected(false)
         }
       })
       return () => {
@@ -78,10 +87,17 @@ export function useSimulationSession() {
     socketRef.current = socket
     socket.on('connect', () => {
       setStatus('connected')
-      socket.emit('join-session', sessionId)
+      socket.emit('join-session', { id: sessionId, role })
     })
-    socket.on('disconnect', () => setStatus('offline'))
-    socket.on('connect_error', () => setStatus('offline'))
+    socket.on('disconnect', () => {
+      setStatus('offline')
+      setTutorConnected(false)
+    })
+    socket.on('connect_error', () => {
+      setStatus('offline')
+      setTutorConnected(false)
+    })
+    socket.on('tutor-presence', ({ connected }: { connected: boolean }) => setTutorConnected(connected))
     socket.on('session-state', (nextState: SimulationState) => applyState(nextState))
     socket.on('state-updated', (nextState: SimulationState) => applyState(nextState))
 
@@ -89,7 +105,7 @@ export function useSimulationSession() {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [sessionId])
+  }, [role, sessionId])
 
   const update = (patch: StatePatch) => {
     const nextState = { ...stateRef.current, ...patch }
@@ -119,5 +135,5 @@ export function useSimulationSession() {
     setSessionId(normalized)
   }
 
-  return { sessionId, state, status, update, joinSession }
+  return { sessionId, state, status, tutorConnected, update, joinSession }
 }

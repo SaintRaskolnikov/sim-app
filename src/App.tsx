@@ -54,11 +54,47 @@ function SessionHeader({ sessionId, status, route }: { sessionId: string; status
   )
 }
 
-function MonitorView({ state, status, sessionId, patterns, update }: {
+function PairingQr({ controllerUrl, sessionId, tutorConnected }: {
+  controllerUrl: string
+  sessionId: string
+  tutorConnected: boolean
+}) {
+  return <PairingQrState key={`${sessionId}:${tutorConnected}`} controllerUrl={controllerUrl} sessionId={sessionId} tutorConnected={tutorConnected} />
+}
+
+function PairingQrState({ controllerUrl, sessionId, tutorConnected }: {
+  controllerUrl: string
+  sessionId: string
+  tutorConnected: boolean
+}) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <>
+      <div className={`monitor-pairing ${tutorConnected ? 'linked' : ''}`}>
+        <button className="monitor-pairing-trigger" aria-label={tutorConnected ? 'Tutor connected' : 'Enlarge session pairing QR code'} disabled={tutorConnected} onClick={() => setExpanded(true)}>
+          <QRCodeSVG value={controllerUrl} size={56} level="M" marginSize={4} bgColor="#ffffff" fgColor="#153b2b" />
+        </button>
+        <div><strong>{tutorConnected ? 'TUTOR LINKED' : 'SCAN TO PAIR'}</strong><span>{tutorConnected ? 'Controller connected' : 'Tap code to enlarge'}</span><small>{sessionId}</small></div>
+      </div>
+      {expanded && !tutorConnected && <div className="qr-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) setExpanded(false) }}>
+        <section className="qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+          <button className="editor-close qr-modal-close" aria-label="Close pairing QR" onClick={() => setExpanded(false)}><X size={18} /></button>
+          <span className="eyebrow">SESSION {sessionId}</span>
+          <h2 id="qr-modal-title">Scan to pair tutor controls</h2>
+          <div className="qr-modal-code"><QRCodeSVG value={controllerUrl} size={320} level="H" marginSize={4} bgColor="#ffffff" fgColor="#153b2b" /></div>
+          <p>Open the camera on the tutor phone</p>
+        </section>
+      </div>}
+    </>
+  )
+}
+
+function MonitorView({ state, status, sessionId, patterns, tutorConnected, update }: {
   state: SimulationState
   status: 'connecting' | 'connected' | 'offline'
   sessionId: string
   patterns: ECGPattern[]
+  tutorConnected: boolean
   update: (patch: StatePatch) => void
 }) {
   const [clock, setClock] = useState(() => new Date())
@@ -81,7 +117,7 @@ function MonitorView({ state, status, sessionId, patterns, update }: {
       <header className="monitor-topbar">
         <div className="monitor-title"><span className="monitor-emblem"><Activity size={20} /></span><div><small>SIMULATION MONITOR</small><strong>RESUS BAY 01</strong></div></div>
         <div className="monitor-session"><span className="live-dot" />SESSION {sessionId}<span className="monitor-divider" />{clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-        <div className="monitor-actions"><ConnectionBadge status={status} /><div className="monitor-pairing"><QRCodeSVG value={controllerUrl} size={54} level="M" bgColor="#ffffff" fgColor="#153b2b" /><div><strong>SCAN TO PAIR</strong><span>Open tutor controls</span><small>{sessionId}</small></div></div><button className="monitor-mode-button" onClick={() => update({ showTwelveLead: !state.showTwelveLead })}>{state.showTwelveLead ? <Activity size={16} /> : <Radio size={16} />}{state.showTwelveLead ? 'Bedside' : '12-lead'}</button></div>
+        <div className="monitor-actions"><ConnectionBadge status={status} /><PairingQr controllerUrl={controllerUrl} sessionId={sessionId} tutorConnected={tutorConnected} /><button className="monitor-mode-button" onClick={() => update({ showTwelveLead: !state.showTwelveLead })}>{state.showTwelveLead ? <Activity size={16} /> : <Radio size={16} />}{state.showTwelveLead ? 'Bedside' : '12-lead'}</button></div>
       </header>
 
       <div className="monitor-warning">SIMULATION ONLY <span>·</span> NOT FOR CLINICAL USE</div>
