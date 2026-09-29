@@ -20,7 +20,7 @@ function getInitialSessionId() {
   return 'sim-01'
 }
 
-export function useSimulationSession() {
+export function useSimulationSession(enabled = true) {
   const [sessionId, setSessionId] = useState(getInitialSessionId)
   const [state, setState] = useState<SimulationState>(INITIAL_STATE)
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
@@ -36,6 +36,7 @@ export function useSimulationSession() {
   }
 
   useEffect(() => {
+    if (!enabled) return
     const client = supabase
     if (client && import.meta.env.PROD) {
       let active = true
@@ -105,7 +106,7 @@ export function useSimulationSession() {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [role, sessionId])
+  }, [enabled, role, sessionId])
 
   const update = (patch: StatePatch) => {
     const nextState = { ...stateRef.current, ...patch }

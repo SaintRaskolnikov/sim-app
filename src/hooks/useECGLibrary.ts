@@ -29,7 +29,7 @@ function normalize(pattern: ECGPattern): ECGPattern {
   }
 }
 
-export function useECGLibrary() {
+export function useECGLibrary(enabled = true) {
   const [patterns, setPatterns] = useState<ECGPattern[]>(defaults)
   const patternsRef = useRef(patterns)
   const socketRef = useRef<Socket | null>(null)
@@ -39,6 +39,7 @@ export function useECGLibrary() {
   }
 
   useEffect(() => {
+    if (!enabled) return
     const client = supabase
     if (client && import.meta.env.PROD) {
       let active = true
@@ -82,7 +83,7 @@ export function useECGLibrary() {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [])
+  }, [enabled])
 
   const savePattern = (pattern: ECGPattern) => {
     const existingIndex = patternsRef.current.findIndex((item) => item.id === pattern.id)

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Activity, ArrowLeft, ArrowUp, BookOpen, HeartPulse, Monitor, Pencil, Plus, Radio, Siren, Trash2, Wifi, WifiOff, X } from 'lucide-react'
+import { Activity, ArrowLeft, ArrowUp, BookOpen, HeartPulse, LogOut, Monitor, Pencil, Plus, Radio, Siren, Trash2, Wifi, WifiOff, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import './App.css'
 import { findPattern, rhythms, type ECGMorphology, type ECGPattern } from './data/ecgLibrary'
 import { useECGLibrary } from './hooks/useECGLibrary'
 import { useSimulationSession } from './hooks/useSimulationSession'
+import { useMonitorAuth } from './hooks/useMonitorAuth'
+import { MonitorAccess } from './components/MonitorAccess'
 import { TwelveLeadCanvas, Waveform } from './components/Waveform'
 import { meanArterialPressure, type SimulationState, type StatePatch } from './types'
 
@@ -89,13 +91,14 @@ function PairingQrState({ controllerUrl, sessionId, tutorConnected }: {
   )
 }
 
-function MonitorView({ state, status, sessionId, patterns, tutorConnected, update }: {
+function MonitorView({ state, status, sessionId, patterns, tutorConnected, update, signOut }: {
   state: SimulationState
   status: 'connecting' | 'connected' | 'offline'
   sessionId: string
   patterns: ECGPattern[]
   tutorConnected: boolean
   update: (patch: StatePatch) => void
+  signOut?: () => void
 }) {
   const [clock, setClock] = useState(() => new Date())
   const [controllerOrigin, setControllerOrigin] = useState(() => window.location.origin)
@@ -117,7 +120,7 @@ function MonitorView({ state, status, sessionId, patterns, tutorConnected, updat
       <header className="monitor-topbar">
         <div className="monitor-title"><span className="monitor-emblem"><Activity size={20} /></span><div><small>SIMULATION MONITOR</small><strong>RESUS BAY 01</strong></div></div>
         <div className="monitor-session"><span className="live-dot" />SESSION {sessionId}<span className="monitor-divider" />{clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-        <div className="monitor-actions"><ConnectionBadge status={status} /><PairingQr controllerUrl={controllerUrl} sessionId={sessionId} tutorConnected={tutorConnected} /><button className="monitor-mode-button" onClick={() => update({ showTwelveLead: !state.showTwelveLead })}>{state.showTwelveLead ? <Activity size={16} /> : <Radio size={16} />}{state.showTwelveLead ? 'Bedside' : '12-lead'}</button></div>
+        <div className="monitor-actions"><ConnectionBadge status={status} /><PairingQr controllerUrl={controllerUrl} sessionId={sessionId} tutorConnected={tutorConnected} /><button className="monitor-mode-button" onClick={() => update({ showTwelveLead: !state.showTwelveLead })}>{state.showTwelveLead ? <Activity size={16} /> : <Radio size={16} />}{state.showTwelveLead ? 'Bedside' : '12-lead'}</button>{signOut && <button className="monitor-mode-button monitor-sign-out" onClick={signOut}><LogOut size={14} />Sign out</button>}</div>
       </header>
 
       <div className="monitor-warning">SIMULATION ONLY <span>·</span> NOT FOR CLINICAL USE</div>
@@ -314,10 +317,15 @@ function LibraryView({ state, sessionId, status, patterns, update, savePattern, 
 }
 
 function App() {
-  const session = useSimulationSession()
-  const library = useECGLibrary()
   const path = window.location.pathname.replace(/\/$/, '') || '/control'
-  if (path === '/monitor') return <MonitorView {...session} patterns={library.patterns} />
+  const isMonitorRoute = path === '/monitor'
+  const authRequired = isMonitorRoute && import.meta.env.PROD
+  const auth = useMonitorAuth(authRequired)
+  const canConnect = !authRequired || auth.authenticated
+  const session = useSimulationSession(canConnect)
+  const library = useECGLibrary(canConnect)
+  if (authRequired && !auth.authenticated) return <MonitorAccess configured={auth.configured} loading={auth.loading} />
+  if (isMonitorRoute) return <MonitorView {...session} patterns={library.patterns} signOut={authRequired ? auth.signOut : undefined} />
   if (path === '/ekg-library') return <LibraryView {...session} patterns={library.patterns} savePattern={library.savePattern} deletePattern={library.deletePattern} />
   return <ControlView {...session} patterns={library.patterns} />
 }
