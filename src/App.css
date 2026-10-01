@@ -67,9 +67,9 @@ a { color: inherit; }
 .number-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
 .number-control { --vital-color: #718278; --vital-border: #dce4dc; --vital-tint: #f6f8f4; min-width: 0; padding: 10px 12px 10px; border: 1px solid #dce4dc; border-top: 3px solid var(--vital-color); border-radius: 6px; background: var(--white); }
 .number-control.tone-ecg { --vital-color: #398857; --vital-border: #bfd8c4; --vital-tint: #f1f8f1; }
-.number-control.tone-bp { --vital-color: #a3841c; --vital-border: #e4d795; --vital-tint: #fcf8e8; }
+.number-control.tone-bp { --vital-color: #bd4d49; --vital-border: #e9c7c3; --vital-tint: #fff4f2; }
 .number-control.tone-spo2 { --vital-color: #3188a7; --vital-border: #b9dce7; --vital-tint: #f0f8fa; }
-.number-control.tone-co2 { --vital-color: #8c5c9a; --vital-border: #d8c2df; --vital-tint: #f8f3fa; }
+.number-control.tone-co2 { --vital-color: #9a7c12; --vital-border: #e8db9b; --vital-tint: #fcf9eb; }
 .number-control-label { overflow: hidden; color: var(--vital-color); font-size: 11px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .stepper { display: grid; grid-template-columns: 46px minmax(48px, 1fr) 46px; align-items: center; gap: 7px; margin-top: 9px; }
 .stepper > button { display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid var(--vital-border, #dce4dc); border-radius: 5px; background: var(--vital-tint, #f6f8f4); color: var(--vital-color, #315b47); font-size: 24px; font-weight: 500; transition: background .15s ease, transform .1s ease; }
@@ -254,6 +254,7 @@ a { color: inherit; }
 .monitor-footer > div { display: flex; flex-direction: column; gap: 5px; }
 .footer-label { color: #728178; font: 8px var(--mono); letter-spacing: .06em; }
 .monitor-footer strong { color: #c6d4cb; font: 10px var(--mono); }
+.monitor-footer .temp-value { font-size: 20px; }
 .monitor-disclaimer { margin-left: auto; color: #59695f; font: 8px var(--mono); }
 .monitor-12lead-panel { padding: 14px; border: 1px solid #1c2a24; border-radius: 3px; background: #0c1310; }
 .monitor-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 1px 0 12px; }

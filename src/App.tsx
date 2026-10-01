@@ -131,14 +131,14 @@ function MonitorView({ state, status, sessionId, patterns, tutorConnected, updat
         </section>
       ) : (
         <section className="wave-stack" aria-label="Live physiological waveforms">
-          <div className="monitor-wave-row ecg-wave-row"><div className="wave-label"><strong>II</strong><span>ECG</span></div><Waveform kind="ecg" color="#65e58a" state={state} /><div className="wave-reading"><strong>{state.heartRate}</strong><span>bpm · {rhythmName(state.rhythm)}</span></div></div>
+          <div className="monitor-wave-row ecg-wave-row"><div className="wave-label"><strong>II</strong><span>ECG</span></div><Waveform kind="ecg" color="#65e58a" state={state} /><div className="wave-reading"><strong>{state.heartRate}</strong><span>bpm</span></div></div>
           <div className={`monitor-wave-row pressure-wave-row ${isAlarming('systolic') || isAlarming('diastolic') ? 'alarming' : ''}`}><div className="wave-label"><strong>{state.bloodPressureMode === 'cuff' ? 'NIBP' : 'ART'}</strong><span>mmHg</span></div><Waveform kind="pressure" color="#ed625d" state={state} /><div className="wave-reading"><strong>{state.bloodPressureAvailable ? `${state.systolic}/${state.diastolic}` : '?/?'}</strong><span>{state.bloodPressureAvailable ? `MAP ${meanArterialPressure(state.systolic, state.diastolic)}` : 'not measured'}</span></div></div>
           <div className={`monitor-wave-row pleth-wave-row ${isAlarming('spo2') ? 'alarming' : ''}`}><div className="wave-label"><strong>PLETH</strong><span>SpO₂</span></div><Waveform kind="pleth" color="#65c7f2" state={state} /><div className="wave-reading"><strong>{state.spo2}<small>%</small></strong><span>SpO₂</span></div></div>
           <div className={`monitor-wave-row capno-wave-row ${isAlarming('etco2') || isAlarming('respiratoryRate') ? 'alarming' : ''}`}><div className="wave-label"><strong>CO₂</strong><span>mmHg</span></div><Waveform kind="capno" color="#f3d353" state={state} /><div className="wave-reading"><strong>{state.etco2}</strong><span>EtCO₂ · RR {state.respiratoryRate}</span></div></div>
         </section>
       )}
 
-      <footer className="monitor-footer"><div className={isAlarming('temperature') ? 'alarming' : ''}><span className="footer-label">TEMP</span><strong>{state.temperature.toFixed(1)} °C</strong></div><div><span className="footer-label">RHYTHM</span><strong>{rhythmName(state.rhythm)}</strong></div><div><span className="footer-label">ECG PATTERN</span><strong>{selectedPattern.title}</strong></div><span className="monitor-disclaimer">For simulation and training only</span></footer>
+      <footer className="monitor-footer"><div className={isAlarming('temperature') ? 'alarming' : ''}><span className="footer-label">TEMP</span><strong className="temp-value">{state.temperature.toFixed(1)} °C</strong></div><span className="monitor-disclaimer">For simulation and training only</span></footer>
     </main>
   )
 }
