@@ -22,21 +22,23 @@ export function clearMonitorAuthToken() {
 }
 
 export async function getMonitorAuthHeaders() {
-	if (!neonAuth) throw new Error('Neon Managed Auth is not configured')
-	const client = await neonAuth
+	if (!authUrl) throw new Error('Neon Managed Auth is not configured')
 	if (cachedMonitorToken && Date.now() < monitorTokenExpiresAt) {
 		return { Authorization: `Bearer ${cachedMonitorToken}` }
 	}
 	if (!pendingMonitorToken) {
 		const generation = tokenCacheGeneration
 		pendingMonitorToken = (async () => {
-			const { data, error } = await client.token()
-			if (error || !data?.token) throw new Error('Please sign in to access the monitor')
+			const response = await fetch(`${authUrl.replace(/\/$/, '')}/token`, { credentials: 'include' })
+			if (!response.ok) throw new Error('Please sign in to access the monitor')
+			const result = await response.json() as { data?: { token?: unknown }; token?: unknown }
+			const token = result.data?.token ?? result.token
+			if (typeof token !== 'string') throw new Error('Please sign in to access the monitor')
 			if (generation === tokenCacheGeneration) {
-				cachedMonitorToken = data.token
+				cachedMonitorToken = token
 				monitorTokenExpiresAt = Date.now() + 10 * 60 * 1000
 			}
-			return data.token
+			return token
 		})()
 	}
 	try {
