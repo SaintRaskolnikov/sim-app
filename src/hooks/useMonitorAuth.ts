@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { neonAuth } from '../lib/neonAuth'
+import { clearMonitorAuthToken, neonAuth } from '../lib/neonAuth'
 
 export function useMonitorAuth(enabled: boolean) {
   const [email, setEmail] = useState<string | null>(null)
@@ -31,14 +31,13 @@ export function useMonitorAuth(enabled: boolean) {
       }
     }
     void checkSession()
-    const timer = window.setInterval(() => void checkSession(), 5000)
     return () => {
       active = false
-      window.clearInterval(timer)
     }
   }, [client, enabled])
 
   const signOut = async () => {
+    clearMonitorAuthToken()
     if (client) {
       await client.signOut()
       setEmail(null)
