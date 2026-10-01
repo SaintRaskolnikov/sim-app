@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
-import type { RealtimeChannel } from '@supabase/supabase-js'
+import { getMonitorAuthHeaders } from '../lib/neonAuth'
 import { INITIAL_STATE, type SimulationState, type StatePatch } from '../types'
-import { supabase } from '../lib/supabase'
 
 type ConnectionStatus = 'connecting' | 'connected' | 'offline'
 
@@ -26,8 +25,10 @@ export function useSimulationSession(enabled = true) {
   const [status, setStatus] = useState<ConnectionStatus>('connecting')
   const [tutorConnected, setTutorConnected] = useState(false)
   const socketRef = useRef<Socket | null>(null)
-  const channelRef = useRef<RealtimeChannel | null>(null)
   const stateRef = useRef(state)
+  const clientId = useId().replace(/:/g, '')
+  const lastLocalUpdateAt = useRef(0)
+  const updateRevision = useRef(0)
   const role = window.location.pathname === '/monitor' ? 'monitor' : 'tutor'
 
   const applyState = (nextState: SimulationState) => {
@@ -37,50 +38,32 @@ export function useSimulationSession(enabled = true) {
 
   useEffect(() => {
     if (!enabled) return
-    const client = supabase
-    if (client && import.meta.env.PROD) {
+    if (import.meta.env.PROD) {
       let active = true
-      const presenceKey = `${role}-${globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2)}`
-      const channel = client.channel(`session:${sessionId}`, { config: { presence: { key: presenceKey } } })
-        .on('broadcast', { event: 'state' }, ({ payload }) => {
-          if (payload?.state) applyState(payload.state as SimulationState)
-        })
-        .on('presence', { event: 'sync' }, () => {
-          const participants = Object.values(channel.presenceState()).flat() as Array<{ role?: string }>
-          setTutorConnected(participants.some((participant) => participant.role === 'tutor'))
-        })
-      channelRef.current = channel
-      channel.subscribe(async (channelStatus) => {
-        if (!active) return
-        if (channelStatus === 'SUBSCRIBED') {
-          setStatus('connected')
-          void channel.track({ role })
-          const response = await fetch(`/api/sessions?id=${encodeURIComponent(sessionId)}`)
+      let timer = 0
+      const pollSession = async () => {
+        try {
+          const params = new URLSearchParams({ id: sessionId, role, clientId })
+          const headers = role === 'monitor' ? await getMonitorAuthHeaders() : {}
+          const response = await fetch(`/api/sessions?${params}`, { headers })
+          if (!response.ok) throw new Error('Session request failed')
+          const result = await response.json() as { state: SimulationState; tutorConnected: boolean }
           if (!active) return
-          if (!response.ok) {
+          setStatus('connected')
+          setTutorConnected(result.tutorConnected)
+          if (role === 'monitor' || Date.now() - lastLocalUpdateAt.current > 900) applyState(result.state)
+        } catch {
+          if (active) {
             setStatus('offline')
-          } else {
-            const result = await response.json() as { state: SimulationState | null }
-            if (result.state) {
-              applyState(result.state)
-            } else {
-              const createResponse = await fetch('/api/sessions', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: sessionId, state: INITIAL_STATE }),
-              })
-              if (!createResponse.ok) setStatus('offline')
-            }
+            setTutorConnected(false)
           }
-        } else if (channelStatus === 'CHANNEL_ERROR' || channelStatus === 'TIMED_OUT') {
-          setStatus('offline')
-          setTutorConnected(false)
         }
-      })
+        if (active) timer = window.setTimeout(pollSession, 700)
+      }
+      void pollSession()
       return () => {
         active = false
-        channelRef.current = null
-        void client.removeChannel(channel)
+        window.clearTimeout(timer)
       }
     }
 
@@ -106,20 +89,30 @@ export function useSimulationSession(enabled = true) {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [enabled, role, sessionId])
+  }, [clientId, enabled, role, sessionId])
 
   const update = (patch: StatePatch) => {
     const nextState = { ...stateRef.current, ...patch }
     applyState(nextState)
-    if (supabase && import.meta.env.PROD) {
-      void fetch('/api/sessions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: sessionId, state: nextState }),
-      }).then((response) => {
-        if (!response.ok) setStatus('offline')
-      }).catch(() => setStatus('offline'))
-      void channelRef.current?.send({ type: 'broadcast', event: 'state', payload: { state: nextState } })
+    if (import.meta.env.PROD) {
+      lastLocalUpdateAt.current = Date.now()
+      const revision = ++updateRevision.current
+      void (async () => {
+        try {
+          const headers = role === 'monitor' ? await getMonitorAuthHeaders() : {}
+          const response = await fetch('/api/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...headers },
+            body: JSON.stringify({ id: sessionId, patch, role, clientId }),
+          })
+          if (!response.ok) throw new Error('Session update failed')
+          const result = await response.json() as { state: SimulationState }
+          if (revision === updateRevision.current) applyState(result.state)
+          setStatus('connected')
+        } catch {
+          setStatus('offline')
+        }
+      })()
     } else {
       socketRef.current?.emit('update-state', patch)
     }

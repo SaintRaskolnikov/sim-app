@@ -11,7 +11,9 @@
     "start:session": "node server/index.mjs"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.117.2",
+    "@neondatabase/neon-js": "^0.7.0-beta",
+    "@neondatabase/serverless": "^1.1.0",
+    "jose": "^6.2.12",
     "lucide-react": "^1.49.0",
     "qrcode.react": "^4.2.0",
     "react": "^19.2.8",

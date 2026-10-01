@@ -353,10 +353,10 @@ function App() {
   useEffect(() => {
     if (isAuthRoute && auth.authenticated) window.location.replace('/monitor')
   }, [auth.authenticated, isAuthRoute])
-  if (authRequired && !auth.authenticated) return <MonitorAccess configured={auth.configured} loading={auth.loading} initialMode={initialAuthMode} />
+  if (authRequired && !auth.authenticated) return <MonitorAccess configured={auth.configured} loading={auth.loading} initialMode={initialAuthMode} onAuthenticated={auth.refreshSession} />
   if (isMonitorRoute) return <MonitorView {...session} patterns={library.patterns} signOut={authRequired ? auth.signOut : undefined} />
   if (path === '/ekg-library') return <LibraryView {...session} patterns={library.patterns} savePattern={library.savePattern} deletePattern={library.deletePattern} />
-  if (isAuthRoute) return <MonitorAccess configured={auth.configured} loading={auth.loading} initialMode={initialAuthMode} />
+  if (isAuthRoute) return <MonitorAccess configured={auth.configured} loading={auth.loading} initialMode={initialAuthMode} onAuthenticated={auth.refreshSession} />
   return <ControlView {...session} patterns={library.patterns} presets={scenarioPresets.presets} savePreset={scenarioPresets.savePreset} deletePreset={scenarioPresets.deletePreset} />
 }
 

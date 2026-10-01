@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { allPatterns, type ECGMorphology, type ECGPattern } from '../data/ecgLibrary'
-import { supabase } from '../lib/supabase'
 
 const inferredMorphology: Record<string, string> = {
   'normal-sinus': 'normal',
@@ -45,41 +44,44 @@ export function useECGLibrary(enabled = true) {
 
   useEffect(() => {
     if (!enabled) return
-    const client = supabase
-    if (client && import.meta.env.PROD) {
+    if (import.meta.env.PROD) {
       let active = true
+      let timer = 0
       const load = async () => {
-        const response = await fetch('/api/ecg-library')
-        if (!active || !response.ok) return
-        const loaded = await response.json() as ECGPattern[]
-        if (loaded.length === 0) {
-          await fetch('/api/ecg-library', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ patterns: defaults }),
-          })
-          if (active) setCurrent(defaults)
-          return
+        try {
+          const response = await fetch('/api/ecg-library')
+          if (!active || !response.ok) throw new Error('ECG library request failed')
+          const loaded = await response.json() as ECGPattern[]
+          if (loaded.length === 0) {
+            await fetch('/api/ecg-library', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ patterns: defaults }),
+            })
+            if (active) setCurrent(defaults)
+            return
+          }
+          const merged = mergeBuiltins(loaded)
+          const loadedIds = new Set(loaded.map((pattern) => pattern.id))
+          const addedBuiltins = merged.filter((pattern) => !loadedIds.has(pattern.id))
+          if (addedBuiltins.length > 0) {
+            await fetch('/api/ecg-library', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ patterns: addedBuiltins }),
+            })
+          }
+          if (active) setCurrent(merged)
+        } catch {
+          // Retain the last known catalog if the polling request fails.
+        } finally {
+          if (active) timer = window.setTimeout(load, 2500)
         }
-        const merged = mergeBuiltins(loaded)
-        const loadedIds = new Set(loaded.map((pattern) => pattern.id))
-        const addedBuiltins = merged.filter((pattern) => !loadedIds.has(pattern.id))
-        if (addedBuiltins.length > 0) {
-          await fetch('/api/ecg-library', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ patterns: addedBuiltins }),
-          })
-        }
-        if (active) setCurrent(merged)
       }
-      const channel = client.channel('ecg-library-updates')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'ecg_patterns' }, () => void load())
-        .subscribe()
       void load().catch(() => undefined)
       return () => {
         active = false
-        void client.removeChannel(channel)
+        window.clearTimeout(timer)
       }
     }
 
@@ -108,7 +110,7 @@ export function useECGLibrary(enabled = true) {
     if (existingIndex === -1) next.push(pattern)
     else next[existingIndex] = pattern
     setCurrent(next)
-    if (supabase && import.meta.env.PROD) {
+    if (import.meta.env.PROD) {
       void fetch('/api/ecg-library', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -122,7 +124,7 @@ export function useECGLibrary(enabled = true) {
   const deletePattern = (id: string) => {
     const next = patternsRef.current.filter((pattern) => pattern.id !== id)
     setCurrent(next)
-    if (supabase && import.meta.env.PROD) {
+    if (import.meta.env.PROD) {
       void fetch('/api/ecg-library', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },

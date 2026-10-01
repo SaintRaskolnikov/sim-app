@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react'
 import { Activity, LogIn, UserRoundPlus } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { neonAuth } from '../lib/neonAuth'
 
-export function MonitorAccess({ configured, loading, initialMode = 'sign-in' }: { configured: boolean; loading: boolean; initialMode?: 'sign-in' | 'register' }) {
+export function MonitorAccess({ configured, loading, initialMode = 'sign-in', onAuthenticated }: { configured: boolean; loading: boolean; initialMode?: 'sign-in' | 'register'; onAuthenticated: () => Promise<void> }) {
   const [mode, setMode] = useState<'sign-in' | 'register'>(initialMode)
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
@@ -12,18 +13,26 @@ export function MonitorAccess({ configured, loading, initialMode = 'sign-in' }: 
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (!supabase) return
+    if (!neonAuth) return
     setSubmitting(true)
     setMessage('')
     setError('')
-    const result = mode === 'sign-in'
-      ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-      : await supabase.auth.signUp({ email: email.trim(), password, options: { emailRedirectTo: `${window.location.origin}/login` } })
-    setSubmitting(false)
-    if (result.error) {
-      setError(result.error.message)
-    } else if (mode === 'register' && !result.data.session) {
-      setMessage('Check your email to confirm your account, then sign in.')
+      try {
+        const result = mode === 'sign-in'
+          ? await neonAuth.signIn.email({ email: email.trim(), password })
+          : await neonAuth.signUp.email({ name: name.trim() || email.split('@')[0], email: email.trim(), password })
+        setSubmitting(false)
+        if (result.error) {
+          setError(result.error.message ?? 'Account request failed.')
+        } else {
+          await onAuthenticated()
+          if (mode === 'register') {
+            setMessage('Account created. Check your email if verification is enabled.')
+          }
+        }
+    } catch (submitError) {
+      setSubmitting(false)
+      setError(submitError instanceof Error ? submitError.message : 'Unable to process account request.')
     }
   }
 
@@ -50,7 +59,8 @@ export function MonitorAccess({ configured, loading, initialMode = 'sign-in' }: 
               <label>Password<input type="password" autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'} minLength={8} required value={password} onChange={(event) => setPassword(event.target.value)} placeholder="At least 8 characters" /></label>
               {error && <p className="auth-error" role="alert">{error}</p>}
               {message && <p className="auth-message" role="status">{message}</p>}
-              {!configured && <p className="auth-setup-message">Account access is not configured yet. Connect Supabase to enable sign-in and registration.</p>}
+              {mode === 'register' && <label>Your name<input type="text" autoComplete="name" maxLength={80} required value={name} onChange={(event) => setName(event.target.value)} placeholder="Name shown to tutors" /></label>}
+              {!configured && <p className="auth-setup-message">Neon Managed Auth is not configured for this deployment yet.</p>}
               <button className="auth-submit" type="submit" disabled={!configured || submitting}>{submitting ? 'Please wait…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}</button>
             </form>
           </>

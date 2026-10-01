@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { DEFAULT_SCENARIO_PRESETS, type ScenarioPreset } from '../data/scenarioPresets'
-import { supabase } from '../lib/supabase'
 
 function mergeDefaults(saved: ScenarioPreset[]) {
   const ids = new Set(saved.map((preset) => preset.id))
@@ -19,28 +18,29 @@ export function useScenarioPresets(enabled = true) {
 
   useEffect(() => {
     if (!enabled) return
-    const client = supabase
-    if (client && import.meta.env.PROD) {
+    if (import.meta.env.PROD) {
       let active = true
+      let timer = 0
       const load = async () => {
-        const response = await fetch('/api/scenario-presets')
-        if (!active || !response.ok) return
-        const saved = await response.json() as ScenarioPreset[]
-        const merged = mergeDefaults(saved)
-        if (saved.length === 0) {
-          await fetch('/api/scenario-presets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ presets: merged }) })
-        } else if (merged.length > saved.length) {
-          await fetch('/api/scenario-presets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ presets: merged }) })
+        try {
+          const response = await fetch('/api/scenario-presets')
+          if (!active || !response.ok) throw new Error('Scenario preset request failed')
+          const saved = await response.json() as ScenarioPreset[]
+          const merged = mergeDefaults(saved)
+          if (saved.length === 0 || merged.length > saved.length) {
+            await fetch('/api/scenario-presets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ presets: merged }) })
+          }
+          if (active) setCurrent(merged)
+        } catch {
+          // Keep the current presets if the polling request fails.
+        } finally {
+          if (active) timer = window.setTimeout(load, 2500)
         }
-        if (active) setCurrent(merged)
       }
-      const channel = client.channel('scenario-presets-updates')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'scenario_presets' }, () => void load())
-        .subscribe()
       void load().catch(() => undefined)
       return () => {
         active = false
-        void client.removeChannel(channel)
+        window.clearTimeout(timer)
       }
     }
 
@@ -69,7 +69,7 @@ export function useScenarioPresets(enabled = true) {
     if (index === -1) next.push(preset)
     else next[index] = preset
     setCurrent(next)
-    if (supabase && import.meta.env.PROD) {
+    if (import.meta.env.PROD) {
       void fetch('/api/scenario-presets', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ presets: next }) })
     } else {
       socketRef.current?.emit('save-scenario-presets', next)
@@ -79,7 +79,7 @@ export function useScenarioPresets(enabled = true) {
   const deletePreset = (id: string) => {
     const next = presetsRef.current.filter((preset) => preset.id !== id)
     setCurrent(next)
-    if (supabase && import.meta.env.PROD) {
+    if (import.meta.env.PROD) {
       void fetch('/api/scenario-presets', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     } else {
       socketRef.current?.emit('save-scenario-presets', next)

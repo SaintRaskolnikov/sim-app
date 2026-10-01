@@ -13,19 +13,15 @@ Open `/monitor` on the display computer. A new session code and controller QR ar
 
 For a phone to reach a locally running monitor, open the monitor using the computer's LAN URL shown by Vite (for example `http://192.168.1.20:5173/monitor`), not `localhost`. Local session and ECG catalog data are stored under `data/` and ignored by Git.
 
-## Vercel deployment
+## Vercel and Neon
 
-Vercel serves the Vite app and its `/api` serverless functions. Supabase provides persistent storage and Realtime notifications; the local Socket.IO server is only used by `npm run dev`.
+Vercel serves the Vite app and `/api` functions. The Vercel-managed Neon integration is connected to this project with Neon Managed Better Auth enabled. It supplies `DATABASE_URL`, `NEON_AUTH_BASE_URL`, and `VITE_NEON_AUTH_URL`; `server/neonDb.js` creates the session, ECG, and preset tables idempotently on first API use. Local Vite development continues to use the Socket.IO server.
 
-1. Create a Supabase project and run [`supabase/schema.sql`](supabase/schema.sql) in its SQL editor.
-2. Enable Email sign-in in Supabase Authentication. Set the Site URL to the Vercel production URL and add that URL to the allowed redirect URLs.
-3. Set `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SUPABASE_URL`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel's project environment variables. The anon key is public; keep the service-role key server-only and never give it a `VITE_` prefix.
-4. Import the repository into Vercel and deploy with the included [`vercel.json`](vercel.json).
-5. Disable Vercel SSO deployment protection so tutors can open the public QR link. The `/monitor` route then requires a Supabase account; `/control` remains available to anyone holding its session QR.
+For another deployment, install the Neon integration from **Vercel → Integrations → Neon**, create or link a Neon Free database, enable Managed Auth, and connect Production, Preview, and Development environments. Add the Vercel production URL to Neon Auth's trusted domains. Pull generated Development variables locally with `vercel env pull`.
 
-The first connected client seeds the ECG and scenario-preset tables with built-in entries. Session rows are created as monitors are opened. The ECG catalog and editable presets are shared across simulation sessions; custom ECG entries can use an optional public HTTPS image URL.
+The root route and `/login` open monitor sign-in; `/register` opens account creation. Monitor APIs require a Neon Auth JWT. `/control` remains public to anyone holding its session QR, and tutor operations are limited to that session. Vercel SSO protection is disabled so QR users can reach the app. Keep session IDs private and use synthetic training data only.
 
-Anonymous clients can read ECG catalog rows for realtime updates. Session and catalog writes go through Vercel Functions with the server-only service-role key. Session IDs in pairing URLs act as bearer links: anyone holding a QR can control that simulation session. The monitor UI requires an email/password account, while tutor controls do not. Keep this deployment limited to synthetic training data.
+ECG pattern metadata, sessions, and editable scenario presets are stored in Neon Postgres. Image references remain HTTPS URLs; Vercel Blob can be added later if uploaded images are needed.
 
 ## Rhythm morphology references
 
