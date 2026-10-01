@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, ArrowLeft, ArrowUp, BookOpen, HeartPulse, LogOut, Monitor, Pencil, Plus, Radio, Siren, Trash2, Wifi, WifiOff, X } from 'lucide-react'
+import { Activity, ArrowLeft, ArrowUp, BookOpen, HeartPulse, LogOut, Monitor, Pencil, Plus, Radio, Siren, Trash2, Volume2, VolumeX, Wifi, WifiOff, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import './App.css'
 import { findPattern, rhythms, type ECGMorphology, type ECGPattern } from './data/ecgLibrary'
@@ -7,11 +7,12 @@ import { useECGLibrary } from './hooks/useECGLibrary'
 import { useSimulationSession } from './hooks/useSimulationSession'
 import { useMonitorAuth } from './hooks/useMonitorAuth'
 import { useScenarioPresets } from './hooks/useScenarioPresets'
+import { useMonitorAudio } from './hooks/useMonitorAudio'
 import { MonitorAccess } from './components/MonitorAccess'
 import { ScenarioPresetEditor } from './components/ScenarioPresetEditor'
 import type { PresetIconId, ScenarioPreset } from './data/scenarioPresets'
 import { TwelveLeadCanvas, Waveform } from './components/Waveform'
-import { meanArterialPressure, type SimulationState, type StatePatch } from './types'
+import { getActiveAlarms, meanArterialPressure, type AlarmKey, type SimulationState, type StatePatch } from './types'
 
 const rhythmName = (id: string) => rhythms.find((rhythm) => rhythm.id === id)?.title ?? 'Sinus rhythm'
 
@@ -93,6 +94,9 @@ function MonitorView({ state, status, sessionId, patterns, tutorConnected, updat
   const [clock, setClock] = useState(() => new Date())
   const [controllerOrigin, setControllerOrigin] = useState(() => window.location.origin)
   const selectedPattern = findPattern(state.selectedEcg, patterns)
+  const activeAlarms = getActiveAlarms(state)
+  const isAlarming = (key: AlarmKey) => activeAlarms.some((alarm) => alarm.key === key)
+  const audio = useMonitorAudio(state, activeAlarms)
   const controllerUrl = new URL(`/control?session=${encodeURIComponent(sessionId)}`, controllerOrigin).toString()
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 1000)
@@ -110,16 +114,20 @@ function MonitorView({ state, status, sessionId, patterns, tutorConnected, updat
       <header className="monitor-topbar">
         <div className="monitor-title"><span className="monitor-emblem"><Activity size={20} /></span><div><small>SIMULATION MONITOR</small><strong>RESUS BAY 01</strong></div></div>
         <div className="monitor-session"><span className="live-dot" />SESSION {sessionId}<span className="monitor-divider" />{clock.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</div>
-        <div className="monitor-actions"><ConnectionBadge status={status} /><PairingQr controllerUrl={controllerUrl} sessionId={sessionId} tutorConnected={tutorConnected} /><button className="monitor-mode-button" onClick={() => update({ showTwelveLead: !state.showTwelveLead })}>{state.showTwelveLead ? <Activity size={16} /> : <Radio size={16} />}{state.showTwelveLead ? 'Bedside' : '12-lead'}</button>{signOut && <button className="monitor-mode-button monitor-sign-out" onClick={signOut}><LogOut size={14} />Sign out</button>}</div>
+        <div className="monitor-actions"><ConnectionBadge status={status} /><PairingQr controllerUrl={controllerUrl} sessionId={sessionId} tutorConnected={tutorConnected} /><button className="monitor-mode-button audio-button" aria-label={audio.enabled ? 'Mute monitor audio' : 'Enable monitor audio'} title={audio.enabled ? 'Mute monitor audio' : 'Enable monitor audio'} aria-pressed={audio.enabled} onClick={() => void audio.toggle()}>{audio.enabled ? <Volume2 size={16} /> : <VolumeX size={16} />}</button><button className="monitor-mode-button" onClick={() => update({ showTwelveLead: !state.showTwelveLead })}>{state.showTwelveLead ? <Activity size={16} /> : <Radio size={16} />}{state.showTwelveLead ? 'Bedside' : '12-lead'}</button>{signOut && <button className="monitor-mode-button monitor-sign-out" onClick={signOut}><LogOut size={14} />Sign out</button>}</div>
       </header>
 
-      <div className="monitor-warning">SIMULATION ONLY <span>·</span> NOT FOR CLINICAL USE {!state.pulsePresent && <strong className="pulseless-flag">NO PALPABLE PULSE · ECG RATE IS NOT A PULSE RATE</strong>}</div>
+      <div className="monitor-warning">SIMULATION ONLY <span>·</span> NOT FOR CLINICAL USE</div>
+      <div className={`monitor-alarm-strip ${activeAlarms.length ? 'active' : 'clear'}`} role="status" aria-live="assertive">
+        {activeAlarms.length ? activeAlarms.map((alarm) => <span key={`${alarm.key}-${alarm.level}`}><strong>{alarm.level}</strong> {alarm.label}</span>) : <span>ALARMS CLEAR</span>}
+        {!state.bloodPressureAvailable && <span className="bp-unavailable-alarm">BP NOT MEASURED</span>}
+      </div>
 
       <section className="monitor-readouts" aria-label="Patient vital signs">
-        <div className="monitor-metric hr-metric"><div className="metric-label"><span className="metric-dot" />ECG <span className="metric-unit">bpm</span></div><div className="metric-value">{state.heartRate}<small>{rhythmName(state.rhythm)}</small></div></div>
-        <div className="monitor-metric bp-metric"><div className="metric-label"><span className="metric-dot" />NIBP <span className="metric-unit">mmHg</span></div><div className="metric-value bp-value">{state.systolic}<span>/</span>{state.diastolic}<small>MAP {meanArterialPressure(state.systolic, state.diastolic)}</small></div></div>
-        <div className="monitor-metric spo2-metric"><div className="metric-label"><span className="metric-dot" />SpO₂ <span className="metric-unit">%</span></div><div className="metric-value">{state.spo2}<small>PLETH</small></div></div>
-        <div className="monitor-metric co2-metric"><div className="metric-label"><span className="metric-dot" />EtCO₂ <span className="metric-unit">mmHg</span></div><div className="metric-value">{state.etco2}<small>RR {state.respiratoryRate} /min</small></div></div>
+        <div className={`monitor-metric hr-metric ${isAlarming('heartRate') ? 'alarming' : ''}`}><div className="metric-label"><span className="metric-dot" />ECG <span className="metric-unit">bpm</span></div><div className="metric-value">{state.heartRate}<small>{rhythmName(state.rhythm)}</small></div></div>
+        <div className={`monitor-metric bp-metric ${isAlarming('systolic') || isAlarming('diastolic') ? 'alarming' : ''}`}><div className="metric-label"><span className="metric-dot" />{state.bloodPressureMode === 'cuff' ? 'NIBP' : 'ART'} <span className="metric-unit">mmHg</span></div><div className="metric-value bp-value">{state.bloodPressureAvailable ? <>{state.systolic}<span>/</span>{state.diastolic}</> : '?/?'}<small>{state.bloodPressureAvailable ? `MAP ${meanArterialPressure(state.systolic, state.diastolic)}` : 'NOT MEASURED'}</small></div></div>
+        <div className={`monitor-metric spo2-metric ${isAlarming('spo2') ? 'alarming' : ''}`}><div className="metric-label"><span className="metric-dot" />SpO₂ <span className="metric-unit">%</span></div><div className="metric-value">{state.spo2}<small>PLETH</small></div></div>
+        <div className={`monitor-metric co2-metric ${isAlarming('etco2') || isAlarming('respiratoryRate') ? 'alarming' : ''}`}><div className="metric-label"><span className="metric-dot" />EtCO₂ <span className="metric-unit">mmHg</span></div><div className="metric-value">{state.etco2}<small>RR {state.respiratoryRate} /min</small></div></div>
       </section>
 
       {state.showTwelveLead ? (
@@ -131,18 +139,18 @@ function MonitorView({ state, status, sessionId, patterns, tutorConnected, updat
       ) : (
         <section className="wave-stack" aria-label="Live physiological waveforms">
           <div className="monitor-wave-row ecg-wave-row"><div className="wave-label"><strong>II</strong><span>ECG</span></div><Waveform kind="ecg" color="#65e58a" state={state} /><div className="wave-reading"><strong>{state.heartRate}</strong><span>bpm</span></div></div>
-          <div className="monitor-wave-row pressure-wave-row"><div className="wave-label"><strong>ART</strong><span>mmHg</span></div><Waveform kind="pressure" color="#f3d353" state={state} /><div className="wave-reading"><strong>{state.systolic}/{state.diastolic}</strong><span>MAP {meanArterialPressure(state.systolic, state.diastolic)}</span></div></div>
-          <div className="monitor-wave-row pleth-wave-row"><div className="wave-label"><strong>PLETH</strong><span>SpO₂</span></div><Waveform kind="pleth" color="#65c7f2" state={state} /><div className="wave-reading"><strong>{state.spo2}<small>%</small></strong><span>{state.pulsePresent ? 'pulse' : 'no pulse'}</span></div></div>
-          <div className="monitor-wave-row capno-wave-row"><div className="wave-label"><strong>CO₂</strong><span>mmHg</span></div><Waveform kind="capno" color="#d88bf2" state={state} /><div className="wave-reading"><strong>{state.etco2}</strong><span>RR {state.respiratoryRate}</span></div></div>
+          <div className={`monitor-wave-row pressure-wave-row ${isAlarming('systolic') || isAlarming('diastolic') ? 'alarming' : ''}`}><div className="wave-label"><strong>{state.bloodPressureMode === 'cuff' ? 'NIBP' : 'ART'}</strong><span>mmHg</span></div><Waveform kind="pressure" color="#f3d353" state={state} /><div className="wave-reading"><strong>{state.bloodPressureAvailable ? `${state.systolic}/${state.diastolic}` : '?/?'}</strong><span>{state.bloodPressureAvailable ? `MAP ${meanArterialPressure(state.systolic, state.diastolic)}` : 'not measured'}</span></div></div>
+          <div className={`monitor-wave-row pleth-wave-row ${isAlarming('spo2') ? 'alarming' : ''}`}><div className="wave-label"><strong>PLETH</strong><span>SpO₂</span></div><Waveform kind="pleth" color="#65c7f2" state={state} /><div className="wave-reading"><strong>{state.spo2}<small>%</small></strong><span>SpO₂</span></div></div>
+          <div className={`monitor-wave-row capno-wave-row ${isAlarming('etco2') || isAlarming('respiratoryRate') ? 'alarming' : ''}`}><div className="wave-label"><strong>CO₂</strong><span>mmHg</span></div><Waveform kind="capno" color="#d88bf2" state={state} /><div className="wave-reading"><strong>{state.etco2}</strong><span>RR {state.respiratoryRate}</span></div></div>
         </section>
       )}
 
-      <footer className="monitor-footer"><div><span className="footer-label">TEMP</span><strong>{state.temperature.toFixed(1)} °C</strong></div><div><span className="footer-label">PULSE</span><strong>{state.pulsePresent ? 'PRESENT' : 'ABSENT'}</strong></div><div><span className="footer-label">RHYTHM</span><strong>{rhythmName(state.rhythm)}</strong></div><div><span className="footer-label">ECG PATTERN</span><strong>{selectedPattern.title}</strong></div><span className="monitor-disclaimer">For simulation and training only</span></footer>
+      <footer className="monitor-footer"><div className={isAlarming('temperature') ? 'alarming' : ''}><span className="footer-label">TEMP</span><strong>{state.temperature.toFixed(1)} °C</strong></div><div><span className="footer-label">RHYTHM</span><strong>{rhythmName(state.rhythm)}</strong></div><div><span className="footer-label">ECG PATTERN</span><strong>{selectedPattern.title}</strong></div><span className="monitor-disclaimer">For simulation and training only</span></footer>
     </main>
   )
 }
 
-function NumberControl({ label, value, unit, step, min, max, digits = 0, onChange }: {
+function NumberControl({ label, value, unit, step, min, max, digits = 0, tone = 'neutral', disabled = false, displayValue, onChange }: {
   label: string
   value: number
   unit: string
@@ -150,19 +158,23 @@ function NumberControl({ label, value, unit, step, min, max, digits = 0, onChang
   min: number
   max: number
   digits?: number
+  tone?: 'ecg' | 'bp' | 'spo2' | 'co2' | 'neutral'
+  disabled?: boolean
+  displayValue?: string
   onChange: (value: number) => void
 }) {
   const adjust = (delta: number) => {
+    if (disabled) return
     const next = Math.min(max, Math.max(min, value + delta))
     onChange(Number(next.toFixed(digits)))
   }
   return (
-    <div className="number-control">
+    <div className={`number-control tone-${tone}`}>
       <div className="number-control-label">{label}</div>
       <div className="stepper">
-        <button aria-label={`Decrease ${label}`} onClick={() => adjust(-step)}>−</button>
-        <div className="stepper-value"><strong>{digits ? value.toFixed(digits) : value}</strong><span>{unit}</span></div>
-        <button aria-label={`Increase ${label}`} onClick={() => adjust(step)}>+</button>
+        <button aria-label={`Decrease ${label}`} disabled={disabled} onClick={() => adjust(-step)}>−</button>
+        <div className="stepper-value"><strong>{displayValue ?? (digits ? value.toFixed(digits) : value)}</strong><span>{unit}</span></div>
+        <button aria-label={`Increase ${label}`} disabled={disabled} onClick={() => adjust(step)}>+</button>
       </div>
     </div>
   )
@@ -196,6 +208,13 @@ function ControlView({ state, status, sessionId, patterns, presets, update, join
     setEditingExisting(true)
     setEditingPreset({ ...preset, patch: { ...preset.patch } })
   }
+  const updateAlarmRange = (key: AlarmKey, bound: 'low' | 'high', rawValue: string, minimum: number, maximum: number) => {
+    const value = Math.min(maximum, Math.max(minimum, Number(rawValue)))
+    if (!Number.isFinite(value)) return
+    const range = { ...state.alarmLimits[key], [bound]: value }
+    if (range.low >= range.high) return
+    update({ alarmLimits: { ...state.alarmLimits, [key]: range } })
+  }
 
   return (
     <div className="workspace-shell">
@@ -210,16 +229,25 @@ function ControlView({ state, status, sessionId, patterns, presets, update, join
         </form>
 
         <section className="control-section vital-section"><div className="section-heading"><div><span className="section-index">01</span><h2>Vitals</h2></div><span>Tap to adjust</span></div>
+          <div className="blood-pressure-group">
+            <div className="bp-group-heading">
+              <div className="bp-group-title"><strong>Blood pressure</strong><small>{state.bloodPressureMode === 'cuff' ? 'Intermittent cuff reading' : 'Continuous arterial pressure'}</small></div>
+              <div className="segmented-control" role="group" aria-label="Blood pressure source"><button type="button" aria-pressed={state.bloodPressureMode === 'cuff'} onClick={() => update({ bloodPressureMode: 'cuff' })}>Cuff · NIBP</button><button type="button" aria-pressed={state.bloodPressureMode === 'arterial'} onClick={() => update({ bloodPressureMode: 'arterial' })}>Arterial line · ART</button></div>
+              <label className="bp-availability"><input type="checkbox" aria-label="Blood pressure measured" checked={state.bloodPressureAvailable} onChange={(event) => update({ bloodPressureAvailable: event.target.checked })} /> Measured</label>
+            </div>
+            <div className="bp-control-grid">
+              <NumberControl label="Systolic BP" value={state.systolic} unit="mmHg" step={5} min={0} max={300} tone="bp" disabled={!state.bloodPressureAvailable} displayValue={state.bloodPressureAvailable ? undefined : '?'} onChange={(systolic) => update({ systolic })} />
+              <NumberControl label="Diastolic BP" value={state.diastolic} unit="mmHg" step={5} min={0} max={300} tone="bp" disabled={!state.bloodPressureAvailable} displayValue={state.bloodPressureAvailable ? undefined : '?'} onChange={(diastolic) => update({ diastolic })} />
+              <div className="map-readout"><span>Mean arterial pressure</span><strong>{state.bloodPressureAvailable ? meanArterialPressure(state.systolic, state.diastolic) : '?'} <small>mmHg</small></strong>{state.bloodPressureAvailable && <span className="auto-tag">AUTO</span>}</div>
+            </div>
+          </div>
           <div className="number-grid">
-            <NumberControl label="Heart rate" value={state.heartRate} unit="bpm" step={5} min={0} max={300} onChange={(heartRate) => update({ heartRate })} />
-            <NumberControl label="Systolic BP" value={state.systolic} unit="mmHg" step={5} min={0} max={300} onChange={(systolic) => update({ systolic })} />
-            <NumberControl label="Diastolic BP" value={state.diastolic} unit="mmHg" step={5} min={0} max={300} onChange={(diastolic) => update({ diastolic })} />
-            <NumberControl label="SpO₂" value={state.spo2} unit="%" step={1} min={0} max={100} onChange={(spo2) => update({ spo2 })} />
-            <NumberControl label="Respiratory rate" value={state.respiratoryRate} unit="/min" step={1} min={0} max={80} onChange={(respiratoryRate) => update({ respiratoryRate })} />
-            <NumberControl label="EtCO₂" value={state.etco2} unit="mmHg" step={1} min={0} max={100} onChange={(etco2) => update({ etco2 })} />
+            <NumberControl label="Heart rate" value={state.heartRate} unit="bpm" step={5} min={0} max={300} tone="ecg" onChange={(heartRate) => update({ heartRate })} />
+            <NumberControl label="SpO₂" value={state.spo2} unit="%" step={1} min={0} max={100} tone="spo2" onChange={(spo2) => update({ spo2 })} />
+            <NumberControl label="Respiratory rate" value={state.respiratoryRate} unit="/min" step={1} min={0} max={80} tone="co2" onChange={(respiratoryRate) => update({ respiratoryRate })} />
+            <NumberControl label="EtCO₂" value={state.etco2} unit="mmHg" step={1} min={0} max={100} tone="co2" onChange={(etco2) => update({ etco2 })} />
             <NumberControl label="Temperature" value={state.temperature} unit="°C" step={0.1} min={25} max={45} digits={1} onChange={(temperature) => update({ temperature })} />
           </div>
-          <div className="map-readout"><span>Mean arterial pressure</span><strong>{meanArterialPressure(state.systolic, state.diastolic)} <small>mmHg</small></strong><span className="auto-tag">AUTO</span></div>
         </section>
 
         <section className="control-section rhythm-section"><div className="section-heading"><div><span className="section-index">02</span><h2>Rhythm</h2></div><span>{rhythmName(state.rhythm)}</span></div>
@@ -235,6 +263,17 @@ function ControlView({ state, status, sessionId, patterns, presets, update, join
           <div className="display-control"><div className="display-copy"><span className="display-icon"><Radio size={18} /></span><div><strong>12-lead ECG</strong><small>{findPattern(state.selectedEcg, patterns).title}</small></div></div><button className={`toggle ${state.showTwelveLead ? 'on' : ''}`} role="switch" aria-checked={state.showTwelveLead} aria-label="Show 12-lead ECG" onClick={() => update({ showTwelveLead: !state.showTwelveLead })}><span /></button></div>
           <div className="ecg-quick-grid">{patterns.filter((pattern) => pattern.category === '12-lead').map((pattern) => <button key={pattern.id} className={state.selectedEcg === pattern.id ? 'selected' : ''} onClick={() => update({ selectedEcg: pattern.id, rhythm: pattern.rhythm, heartRate: pattern.suggestedRate ?? state.heartRate, pulsePresent: ['vfib', 'fine-vfib', 'asystole'].includes(pattern.rhythm) ? false : state.pulsePresent, showTwelveLead: true })}><span>{pattern.territory ?? '12-LEAD'}</span><strong>{pattern.title}</strong></button>)}</div>
           <a className="library-link" href={`/ekg-library?session=${encodeURIComponent(sessionId)}`}>Choose a preloaded ECG <ArrowUp size={14} /></a>
+        </section>
+        <section className="control-section alarm-section"><div className="section-heading"><div><span className="section-index">05</span><h2>Alarm limits</h2></div><span>Low and high thresholds</span></div>
+          <div className="alarm-limit-grid">{([
+            ['heartRate', 'ECG rate', 'bpm', 0, 300, 1],
+            ['systolic', 'Systolic BP', 'mmHg', 0, 300, 1],
+            ['diastolic', 'Diastolic BP', 'mmHg', 0, 300, 1],
+            ['spo2', 'SpO₂', '%', 0, 100, 1],
+            ['respiratoryRate', 'Respiratory rate', '/min', 0, 80, 1],
+            ['etco2', 'EtCO₂', 'mmHg', 0, 100, 1],
+            ['temperature', 'Temperature', '°C', 25, 45, 0.1],
+          ] as const).map(([key, label, unit, min, max, step]) => <label className="alarm-limit-field" key={key}>{label}<span><input type="number" aria-label={`${label} low alarm`} min={min} max={max} step={step} value={state.alarmLimits[key].low} onChange={(event) => updateAlarmRange(key, 'low', event.target.value, min, max)} /><small>LOW</small></span><span><input type="number" aria-label={`${label} high alarm`} min={min} max={max} step={step} value={state.alarmLimits[key].high} onChange={(event) => updateAlarmRange(key, 'high', event.target.value, min, max)} /><small>HIGH</small></span><em>{unit}</em></label>)}</div>
         </section>
         <p className="training-note"><span>!</span> Simulation and training use only. Not for real patient monitoring or clinical decision-making.</p>
       </main>

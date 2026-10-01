@@ -2,6 +2,8 @@ import react from '@vitejs/plugin-react'
 import { networkInterfaces } from 'node:os'
 import { defineConfig, type Plugin } from 'vite'
 
+const sessionPort = Number(process.env.SOCKET_PORT || 3001)
+
 const pairOriginPlugin: Plugin = {
   name: 'local-pair-origin',
   configureServer(server) {
@@ -25,7 +27,7 @@ export default defineConfig({
     host: '0.0.0.0',
     proxy: {
       '/socket.io': {
-        target: 'http://localhost:3001',
+        target: `http://localhost:${sessionPort}`,
         ws: true,
       },
     },

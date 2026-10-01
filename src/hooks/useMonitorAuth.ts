@@ -12,9 +12,15 @@ export function useMonitorAuth(enabled: boolean) {
       setEmail(null)
       return
     }
-    const { data, error } = await client.getSession()
-    setEmail(error ? null : data?.user?.email ?? null)
-    setLoading(false)
+    try {
+      const authClient = await client
+      const { data, error } = await authClient.getSession()
+      setEmail(error ? null : data?.user?.email ?? null)
+    } catch {
+      setEmail(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -22,7 +28,8 @@ export function useMonitorAuth(enabled: boolean) {
     let active = true
     const checkSession = async () => {
       try {
-        const { data, error } = await client.getSession()
+        const authClient = await client
+        const { data, error } = await authClient.getSession()
         if (!active) return
         setEmail(error ? null : data?.user?.email ?? null)
         setLoading(false)
@@ -39,7 +46,8 @@ export function useMonitorAuth(enabled: boolean) {
   const signOut = async () => {
     clearMonitorAuthToken()
     if (client) {
-      await client.signOut()
+      const authClient = await client
+      await authClient.signOut()
       setEmail(null)
     }
   }

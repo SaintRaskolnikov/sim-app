@@ -18,9 +18,10 @@ export function MonitorAccess({ configured, loading, initialMode = 'sign-in', on
     setMessage('')
     setError('')
       try {
+        const authClient = await neonAuth
         const result = mode === 'sign-in'
-          ? await neonAuth.signIn.email({ email: email.trim(), password })
-          : await neonAuth.signUp.email({ name: name.trim() || email.split('@')[0], email: email.trim(), password })
+          ? await authClient.signIn.email({ email: email.trim(), password })
+          : await authClient.signUp.email({ name: name.trim() || email.split('@')[0], email: email.trim(), password })
         setSubmitting(false)
         if (result.error) {
           setError(result.error.message ?? 'Account request failed.')

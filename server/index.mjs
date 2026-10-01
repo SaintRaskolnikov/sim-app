@@ -14,6 +14,17 @@ const initialState = {
   pulsePresent: true,
   systolic: 110,
   diastolic: 70,
+  bloodPressureMode: 'cuff',
+  bloodPressureAvailable: true,
+  alarmLimits: {
+    heartRate: { low: 50, high: 120 },
+    systolic: { low: 90, high: 180 },
+    diastolic: { low: 60, high: 120 },
+    spo2: { low: 90, high: 100 },
+    respiratoryRate: { low: 8, high: 30 },
+    etco2: { low: 20, high: 50 },
+    temperature: { low: 35, high: 39 },
+  },
   spo2: 96,
   respiratoryRate: 14,
   etco2: 35,
@@ -31,13 +42,35 @@ const numericRanges = {
   etco2: [0, 100],
   temperature: [25, 45],
 }
+const alarmRanges = {
+  heartRate: [0, 300],
+  systolic: [0, 300],
+  diastolic: [0, 300],
+  spo2: [0, 100],
+  respiratoryRate: [0, 80],
+  etco2: [0, 100],
+  temperature: [25, 45],
+}
+
+function cleanAlarmLimits(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null
+  const cleaned = {}
+  for (const [key, [minimum, maximum]] of Object.entries(alarmRanges)) {
+    const range = input[key]
+    if (!range || typeof range.low !== 'number' || typeof range.high !== 'number' ||
+      !Number.isFinite(range.low) || !Number.isFinite(range.high) ||
+      range.low < minimum || range.high > maximum || range.low >= range.high) return null
+    cleaned[key] = { low: range.low, high: range.high }
+  }
+  return cleaned
+}
 const sessions = new Map()
 let ecgLibrary = []
 let scenarioPresets = []
 
 try {
   const saved = JSON.parse(await readFile(storagePath, 'utf8'))
-  for (const [id, state] of Object.entries(saved)) sessions.set(id, { ...initialState, ...state })
+  for (const [id, state] of Object.entries(saved)) sessions.set(id, { ...initialState, ...state, alarmLimits: { ...initialState.alarmLimits, ...state.alarmLimits } })
 } catch {
   await mkdir(dirname(storagePath), { recursive: true })
 }
@@ -148,6 +181,12 @@ io.on('connection', (socket) => {
     }
     if (typeof patch.rhythm === 'string' && rhythms.has(patch.rhythm)) accepted.rhythm = patch.rhythm
     if (typeof patch.pulsePresent === 'boolean') accepted.pulsePresent = patch.pulsePresent
+    if (patch.bloodPressureMode === 'cuff' || patch.bloodPressureMode === 'arterial') accepted.bloodPressureMode = patch.bloodPressureMode
+    if (typeof patch.bloodPressureAvailable === 'boolean') accepted.bloodPressureAvailable = patch.bloodPressureAvailable
+    if (patch.alarmLimits !== undefined) {
+      const limits = cleanAlarmLimits(patch.alarmLimits)
+      if (limits) accepted.alarmLimits = limits
+    }
     if (typeof patch.selectedEcg === 'string' && patch.selectedEcg.length <= 64) accepted.selectedEcg = patch.selectedEcg
     if (typeof patch.showTwelveLead === 'boolean') accepted.showTwelveLead = patch.showTwelveLead
     if (Object.keys(accepted).length === 0) return

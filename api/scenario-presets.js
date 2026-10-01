@@ -10,6 +10,28 @@ const numericLimits = {
   etco2: [0, 100],
   temperature: [25, 45],
 }
+const alarmRanges = {
+  heartRate: [0, 300],
+  systolic: [0, 300],
+  diastolic: [0, 300],
+  spo2: [0, 100],
+  respiratoryRate: [0, 80],
+  etco2: [0, 100],
+  temperature: [25, 45],
+}
+
+function cleanAlarmLimits(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null
+  const cleaned = {}
+  for (const [key, [minimum, maximum]] of Object.entries(alarmRanges)) {
+    const range = input[key]
+    if (!range || typeof range.low !== 'number' || typeof range.high !== 'number' ||
+      !Number.isFinite(range.low) || !Number.isFinite(range.high) ||
+      range.low < minimum || range.high > maximum || range.low >= range.high) return null
+    cleaned[key] = { low: range.low, high: range.high }
+  }
+  return cleaned
+}
 
 function fromRow(row) {
   return { id: row.id, name: row.name, tone: row.tone, icon: row.icon, patch: row.state_patch ?? {} }
@@ -35,6 +57,19 @@ function cleanPreset(preset, sortOrder) {
   if (preset.patch.pulsePresent !== undefined) {
     if (typeof preset.patch.pulsePresent !== 'boolean') return null
     patch.pulsePresent = preset.patch.pulsePresent
+  }
+  if (preset.patch.bloodPressureMode !== undefined) {
+    if (!['cuff', 'arterial'].includes(preset.patch.bloodPressureMode)) return null
+    patch.bloodPressureMode = preset.patch.bloodPressureMode
+  }
+  if (preset.patch.bloodPressureAvailable !== undefined) {
+    if (typeof preset.patch.bloodPressureAvailable !== 'boolean') return null
+    patch.bloodPressureAvailable = preset.patch.bloodPressureAvailable
+  }
+  if (preset.patch.alarmLimits !== undefined) {
+    const alarmLimits = cleanAlarmLimits(preset.patch.alarmLimits)
+    if (!alarmLimits) return null
+    patch.alarmLimits = alarmLimits
   }
   if (preset.patch.selectedEcg !== undefined && typeof preset.patch.selectedEcg === 'string' && preset.patch.selectedEcg.length <= 64) patch.selectedEcg = preset.patch.selectedEcg
   if (preset.patch.showTwelveLead !== undefined && typeof preset.patch.showTwelveLead === 'boolean') patch.showTwelveLead = preset.patch.showTwelveLead

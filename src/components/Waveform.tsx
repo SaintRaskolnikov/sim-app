@@ -110,7 +110,7 @@ function ecgSample(time: number, state: SimulationState, pattern?: ECGPattern, l
 function sample(kind: WaveKind, time: number, state: SimulationState) {
   if (kind === 'ecg') return ecgSample(time, state)
   if (kind === 'pressure') {
-    if (state.systolic === 0 || !state.pulsePresent) return Math.sin(time * 2) * 0.002
+    if (state.bloodPressureMode !== 'arterial' || !state.bloodPressureAvailable || state.systolic === 0 || !state.pulsePresent) return 0
     const phase = beatPhase(time, state.heartRate)
     const pulse = phase < 0.18 ? phase / 0.18 : Math.exp(-(phase - 0.18) * 3.2)
     const normalizedPulse = (pulse - 0.43) * 1.5

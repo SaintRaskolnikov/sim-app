@@ -14,15 +14,15 @@ export interface ScenarioPreset {
 export const DEFAULT_SCENARIO_PRESETS: ScenarioPreset[] = [
   {
     id: 'cardiac-arrest-vf', name: 'Cardiac arrest · VF', tone: 'coral', icon: 'siren',
-    patch: { heartRate: 0, rhythm: 'vfib', pulsePresent: false, selectedEcg: 'vfib', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 48, respiratoryRate: 0, etco2: 8 },
+    patch: { heartRate: 0, rhythm: 'vfib', pulsePresent: false, bloodPressureAvailable: false, selectedEcg: 'vfib', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 48, respiratoryRate: 0, etco2: 8 },
   },
   {
     id: 'pulseless-vt', name: 'Pulseless VT', tone: 'coral', icon: 'heart',
-    patch: { heartRate: 180, rhythm: 'vtach', pulsePresent: false, selectedEcg: 'vtach', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 55, respiratoryRate: 0, etco2: 8 },
+    patch: { heartRate: 180, rhythm: 'vtach', pulsePresent: false, bloodPressureAvailable: false, selectedEcg: 'vtach', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 55, respiratoryRate: 0, etco2: 8 },
   },
   {
     id: 'pea-organized', name: 'PEA · organized', tone: 'amber', icon: 'activity',
-    patch: { heartRate: 72, rhythm: 'sinus', pulsePresent: false, selectedEcg: 'sinus', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 65, respiratoryRate: 12, etco2: 12 },
+    patch: { heartRate: 72, rhythm: 'sinus', pulsePresent: false, bloodPressureAvailable: false, selectedEcg: 'sinus', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 65, respiratoryRate: 12, etco2: 12 },
   },
   {
     id: 'mobitz-ii-bradycardia', name: 'Bradycardia · Mobitz II', tone: 'amber', icon: 'activity',

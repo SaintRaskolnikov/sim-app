@@ -7,6 +7,17 @@ const initialState = {
   pulsePresent: true,
   systolic: 110,
   diastolic: 70,
+  bloodPressureMode: 'cuff',
+  bloodPressureAvailable: true,
+  alarmLimits: {
+    heartRate: { low: 50, high: 120 },
+    systolic: { low: 90, high: 180 },
+    diastolic: { low: 60, high: 120 },
+    spo2: { low: 90, high: 100 },
+    respiratoryRate: { low: 8, high: 30 },
+    etco2: { low: 20, high: 50 },
+    temperature: { low: 35, high: 39 },
+  },
   spo2: 96,
   respiratoryRate: 14,
   etco2: 35,
@@ -24,6 +35,28 @@ const numericRanges = {
   etco2: [0, 100],
   temperature: [25, 45],
 }
+const alarmRanges = {
+  heartRate: [0, 300],
+  systolic: [0, 300],
+  diastolic: [0, 300],
+  spo2: [0, 100],
+  respiratoryRate: [0, 80],
+  etco2: [0, 100],
+  temperature: [25, 45],
+}
+
+function cleanAlarmLimits(input) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return null
+  const cleaned = {}
+  for (const [key, [minimum, maximum]] of Object.entries(alarmRanges)) {
+    const range = input[key]
+    if (!range || typeof range.low !== 'number' || typeof range.high !== 'number' ||
+      !Number.isFinite(range.low) || !Number.isFinite(range.high) ||
+      range.low < minimum || range.high > maximum || range.low >= range.high) return null
+    cleaned[key] = { low: range.low, high: range.high }
+  }
+  return cleaned
+}
 
 function cleanPatch(input) {
   const accepted = {}
@@ -33,6 +66,12 @@ function cleanPatch(input) {
   }
   if (typeof input.rhythm === 'string' && rhythms.has(input.rhythm)) accepted.rhythm = input.rhythm
   if (typeof input.pulsePresent === 'boolean') accepted.pulsePresent = input.pulsePresent
+  if (input.bloodPressureMode === 'cuff' || input.bloodPressureMode === 'arterial') accepted.bloodPressureMode = input.bloodPressureMode
+  if (typeof input.bloodPressureAvailable === 'boolean') accepted.bloodPressureAvailable = input.bloodPressureAvailable
+  if (input.alarmLimits !== undefined) {
+    const limits = cleanAlarmLimits(input.alarmLimits)
+    if (limits) accepted.alarmLimits = limits
+  }
   if (typeof input.selectedEcg === 'string' && input.selectedEcg.length <= 64) accepted.selectedEcg = input.selectedEcg
   if (typeof input.showTwelveLead === 'boolean') accepted.showTwelveLead = input.showTwelveLead
   return accepted
@@ -72,7 +111,9 @@ export default async function handler(request, response) {
       await recordParticipant(sql, id, clientId, role)
       const rows = await sql`select state from public.simulation_sessions where id = ${id}`
       const tutors = await sql`select count(*)::int as count from public.session_participants where session_id = ${id} and role = 'tutor' and last_seen > now() - interval '15 seconds'`
-      return response.status(200).json({ state: rows[0]?.state ?? initialState, tutorConnected: (tutors[0]?.count ?? 0) > 0 })
+      const savedState = rows[0]?.state ?? {}
+      const state = { ...initialState, ...savedState, alarmLimits: { ...initialState.alarmLimits, ...savedState.alarmLimits } }
+      return response.status(200).json({ state, tutorConnected: (tutors[0]?.count ?? 0) > 0 })
     }
     if (request.method === 'POST') {
       const id = String(request.body?.id || '').trim().slice(0, 80)
@@ -85,7 +126,9 @@ export default async function handler(request, response) {
       const rows = await sql`update public.simulation_sessions set state = state || ${JSON.stringify(patch)}::jsonb, updated_at = now() where id = ${id} returning state`
       const clientId = typeof request.body?.clientId === 'string' ? request.body.clientId.slice(0, 80) : ''
       await recordParticipant(sql, id, clientId, role)
-      return response.status(200).json({ state: rows[0]?.state ?? initialState })
+      const savedState = rows[0]?.state ?? {}
+      const state = { ...initialState, ...savedState, alarmLimits: { ...initialState.alarmLimits, ...savedState.alarmLimits } }
+      return response.status(200).json({ state })
     }
     response.setHeader('Allow', 'GET, POST')
     return response.status(405).json({ error: 'Method not allowed' })
