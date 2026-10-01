@@ -123,13 +123,6 @@ function MonitorView({ state, status, sessionId, patterns, tutorConnected, updat
         {!state.bloodPressureAvailable && <span className="bp-unavailable-alarm">BP NOT MEASURED</span>}
       </div>
 
-      <section className="monitor-readouts" aria-label="Patient vital signs">
-        <div className={`monitor-metric hr-metric ${isAlarming('heartRate') ? 'alarming' : ''}`}><div className="metric-label"><span className="metric-dot" />ECG <span className="metric-unit">bpm</span></div><div className="metric-value">{state.heartRate}<small>{rhythmName(state.rhythm)}</small></div></div>
-        <div className={`monitor-metric bp-metric ${isAlarming('systolic') || isAlarming('diastolic') ? 'alarming' : ''}`}><div className="metric-label"><span className="metric-dot" />{state.bloodPressureMode === 'cuff' ? 'NIBP' : 'ART'} <span className="metric-unit">mmHg</span></div><div className="metric-value bp-value">{state.bloodPressureAvailable ? <>{state.systolic}<span>/</span>{state.diastolic}</> : '?/?'}<small>{state.bloodPressureAvailable ? `MAP ${meanArterialPressure(state.systolic, state.diastolic)}` : 'NOT MEASURED'}</small></div></div>
-        <div className={`monitor-metric spo2-metric ${isAlarming('spo2') ? 'alarming' : ''}`}><div className="metric-label"><span className="metric-dot" />SpO₂ <span className="metric-unit">%</span></div><div className="metric-value">{state.spo2}<small>PLETH</small></div></div>
-        <div className={`monitor-metric co2-metric ${isAlarming('etco2') || isAlarming('respiratoryRate') ? 'alarming' : ''}`}><div className="metric-label"><span className="metric-dot" />EtCO₂ <span className="metric-unit">mmHg</span></div><div className="metric-value">{state.etco2}<small>RR {state.respiratoryRate} /min</small></div></div>
-      </section>
-
       {state.showTwelveLead ? (
         <section className="monitor-12lead-panel">
           <div className="monitor-section-heading"><div><span>DIAGNOSTIC ECG</span><h1>{selectedPattern.title}</h1></div><button className="monitor-mode-button" onClick={() => update({ showTwelveLead: false })}><ArrowLeft size={15} />Bedside view</button></div>
@@ -138,10 +131,10 @@ function MonitorView({ state, status, sessionId, patterns, tutorConnected, updat
         </section>
       ) : (
         <section className="wave-stack" aria-label="Live physiological waveforms">
-          <div className="monitor-wave-row ecg-wave-row"><div className="wave-label"><strong>II</strong><span>ECG</span></div><Waveform kind="ecg" color="#65e58a" state={state} /><div className="wave-reading"><strong>{state.heartRate}</strong><span>bpm</span></div></div>
-          <div className={`monitor-wave-row pressure-wave-row ${isAlarming('systolic') || isAlarming('diastolic') ? 'alarming' : ''}`}><div className="wave-label"><strong>{state.bloodPressureMode === 'cuff' ? 'NIBP' : 'ART'}</strong><span>mmHg</span></div><Waveform kind="pressure" color="#f3d353" state={state} /><div className="wave-reading"><strong>{state.bloodPressureAvailable ? `${state.systolic}/${state.diastolic}` : '?/?'}</strong><span>{state.bloodPressureAvailable ? `MAP ${meanArterialPressure(state.systolic, state.diastolic)}` : 'not measured'}</span></div></div>
+          <div className="monitor-wave-row ecg-wave-row"><div className="wave-label"><strong>II</strong><span>ECG</span></div><Waveform kind="ecg" color="#65e58a" state={state} /><div className="wave-reading"><strong>{state.heartRate}</strong><span>bpm · {rhythmName(state.rhythm)}</span></div></div>
+          <div className={`monitor-wave-row pressure-wave-row ${isAlarming('systolic') || isAlarming('diastolic') ? 'alarming' : ''}`}><div className="wave-label"><strong>{state.bloodPressureMode === 'cuff' ? 'NIBP' : 'ART'}</strong><span>mmHg</span></div><Waveform kind="pressure" color="#ed625d" state={state} /><div className="wave-reading"><strong>{state.bloodPressureAvailable ? `${state.systolic}/${state.diastolic}` : '?/?'}</strong><span>{state.bloodPressureAvailable ? `MAP ${meanArterialPressure(state.systolic, state.diastolic)}` : 'not measured'}</span></div></div>
           <div className={`monitor-wave-row pleth-wave-row ${isAlarming('spo2') ? 'alarming' : ''}`}><div className="wave-label"><strong>PLETH</strong><span>SpO₂</span></div><Waveform kind="pleth" color="#65c7f2" state={state} /><div className="wave-reading"><strong>{state.spo2}<small>%</small></strong><span>SpO₂</span></div></div>
-          <div className={`monitor-wave-row capno-wave-row ${isAlarming('etco2') || isAlarming('respiratoryRate') ? 'alarming' : ''}`}><div className="wave-label"><strong>CO₂</strong><span>mmHg</span></div><Waveform kind="capno" color="#d88bf2" state={state} /><div className="wave-reading"><strong>{state.etco2}</strong><span>RR {state.respiratoryRate}</span></div></div>
+          <div className={`monitor-wave-row capno-wave-row ${isAlarming('etco2') || isAlarming('respiratoryRate') ? 'alarming' : ''}`}><div className="wave-label"><strong>CO₂</strong><span>mmHg</span></div><Waveform kind="capno" color="#f3d353" state={state} /><div className="wave-reading"><strong>{state.etco2}</strong><span>EtCO₂ · RR {state.respiratoryRate}</span></div></div>
         </section>
       )}
 

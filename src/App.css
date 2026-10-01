@@ -232,34 +232,24 @@ a { color: inherit; }
 .monitor-alarm-strip strong { margin-right: 3px; }
 .monitor-alarm-strip .bp-unavailable-alarm { margin-left: auto; color: #e3c77b; }
 @keyframes alarm-flash { 50% { background: #55231e; } }
-.monitor-readouts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
-.monitor-metric { min-height: 114px; padding: 12px 15px 10px; border: 1px solid #1c2a24; border-radius: 3px; background: #0c1310; }
-.monitor-metric.alarming, .monitor-wave-row.alarming, .monitor-footer .alarming { border-color: #a94a3d; color: #ff9c86; }
-.monitor-metric.alarming { animation: metric-alarm .9s steps(2, end) infinite; }
+.monitor-wave-row.alarming, .monitor-footer .alarming { border-color: #a94a3d; color: #ff9c86; }
+.monitor-wave-row.alarming .wave-label strong, .monitor-wave-row.alarming .wave-reading strong { color: #ff9c86; }
 .monitor-footer .alarming strong { color: #ff9c86; }
-@keyframes metric-alarm { 50% { background: #241310; } }
-.metric-label { display: flex; align-items: center; gap: 7px; color: #96a69c; font: 9px var(--mono); letter-spacing: .02em; }
-.metric-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.hr-metric .metric-dot, .hr-metric .metric-value { color: #65e58a; }
-.bp-metric .metric-dot, .bp-metric .metric-value { color: #f3d353; }
-.spo2-metric .metric-dot, .spo2-metric .metric-value { color: #65c7f2; }
-.co2-metric .metric-dot, .co2-metric .metric-value { color: #d88bf2; }
-.metric-unit { margin-left: auto; color: #6f7f75; font: 8px var(--mono); }
-.metric-value { margin-top: 7px; font: 44px/.95 var(--mono); letter-spacing: 0; }
-.metric-value small { display: block; overflow: hidden; margin-top: 7px; color: #728278; font: 9px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
-.metric-value.bp-value { font-size: 37px; }
-.bp-value > span { padding: 0 2px; color: #8d9475; font-size: 26px; }
 .wave-stack { border: 1px solid #1c2a24; border-radius: 3px; background: #090f0c; }
-.monitor-wave-row { display: grid; grid-template-columns: 61px minmax(0, 1fr) 89px; align-items: center; gap: 11px; min-height: 98px; padding: 0 13px; border-bottom: 1px solid #19231e; }
+.monitor-wave-row { display: grid; grid-template-columns: 61px minmax(0, 1fr) minmax(112px, 140px); align-items: center; gap: 11px; min-height: 104px; padding: 0 13px; border-bottom: 1px solid #19231e; }
 .monitor-wave-row:last-child { border-bottom: 0; }
 .wave-label { display: flex; flex-direction: column; gap: 5px; }
 .wave-label strong { color: #c7d6cc; font: 10px var(--mono); }
 .wave-label span { color: #6d7d73; font: 8px var(--mono); }
 .wave-canvas { display: block; width: 100%; min-width: 0; }
-.wave-reading { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; white-space: nowrap; }
-.wave-reading strong { color: #dce8df; font: 17px var(--mono); }
+.wave-reading { display: flex; min-width: 0; flex-direction: column; align-items: flex-end; gap: 6px; white-space: nowrap; text-align: right; }
+.wave-reading strong { color: #dce8df; font: 32px/.95 var(--mono); }
 .wave-reading strong small { margin-left: 2px; font-size: 10px; }
-.wave-reading span { color: #78877e; font: 8px var(--mono); }
+.wave-reading span { color: #78877e; font: 9px var(--mono); }
+.ecg-wave-row .wave-reading strong { color: #65e58a; }
+.pressure-wave-row .wave-label strong, .pressure-wave-row .wave-reading strong { color: #ed625d; }
+.pleth-wave-row .wave-reading strong { color: #65c7f2; }
+.capno-wave-row .wave-label strong, .capno-wave-row .wave-reading strong { color: #f3d353; }
 .monitor-footer { display: flex; align-items: center; gap: 28px; min-height: 57px; padding: 8px 2px 0; }
 .monitor-footer > div { display: flex; flex-direction: column; gap: 5px; }
 .footer-label { color: #728178; font: 8px var(--mono); letter-spacing: .06em; }
@@ -386,16 +376,11 @@ a { color: inherit; }
   .monitor-mode-button { min-height: 31px; gap: 5px; padding: 0 7px; font-size: 8px; }
   .monitor-warning { padding: 8px 0 9px; font-size: 7px; }
   .monitor-alarm-strip { flex-wrap: wrap; gap: 5px 10px; font-size: 7px; }
-  .monitor-readouts { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-  .monitor-metric { min-height: 91px; padding: 9px 10px; }
-  .metric-label { font-size: 8px; }
-  .metric-value { margin-top: 6px; font-size: 36px; }
-  .metric-value.bp-value { font-size: 30px; }
-  .metric-value small { margin-top: 5px; font-size: 8px; }
-  .monitor-wave-row { grid-template-columns: 42px minmax(0, 1fr) 58px; gap: 6px; min-height: 79px; padding: 0 7px; }
+  .monitor-wave-row { grid-template-columns: 42px minmax(0, 1fr) 86px; gap: 6px; min-height: 79px; padding: 0 7px; }
   .wave-label strong { font-size: 8px; }
   .wave-label span { font-size: 7px; }
-  .wave-reading strong { font-size: 12px; }
+  .wave-reading strong { font-size: 19px; }
+  .pressure-wave-row .wave-reading strong { font-size: 16px; }
   .wave-reading span { font-size: 7px; }
   .monitor-footer { flex-wrap: wrap; gap: 10px 17px; min-height: 67px; }
   .monitor-footer strong { font-size: 8px; }
