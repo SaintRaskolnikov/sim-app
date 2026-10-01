@@ -1,4 +1,4 @@
-import { ensureDatabaseSchema, getNeonSql } from '../server/neonDb.js'
+import { ensureDatabaseSchema, expireSimulationSessionIfDue, getNeonSql } from '../server/neonDb.js'
 import { verifyMonitorRequest } from '../server/neonAuth.js'
 
 const initialState = {
@@ -107,6 +107,7 @@ export default async function handler(request, response) {
       if (!id) return response.status(400).json({ error: 'Session id is required' })
       const { role, clientId } = getIdentity(request)
       if (!await requireMonitorAuth(request, role)) return response.status(401).json({ error: 'Monitor sign-in required' })
+      if (await expireSimulationSessionIfDue(sql, id)) return response.status(410).json({ error: 'Simulation session expired' })
       await sql`insert into public.simulation_sessions (id, state) values (${id}, ${JSON.stringify(initialState)}::jsonb) on conflict (id) do nothing`
       await recordParticipant(sql, id, clientId, role)
       const rows = await sql`select state from public.simulation_sessions where id = ${id}`
@@ -120,6 +121,7 @@ export default async function handler(request, response) {
       if (!id) return response.status(400).json({ error: 'Session id is required' })
       const role = request.body?.role === 'monitor' ? 'monitor' : 'tutor'
       if (!await requireMonitorAuth(request, role)) return response.status(401).json({ error: 'Monitor sign-in required' })
+      if (await expireSimulationSessionIfDue(sql, id)) return response.status(410).json({ error: 'Simulation session expired' })
       const patch = cleanPatch(request.body?.patch)
       if (Object.keys(patch).length === 0) return response.status(400).json({ error: 'No valid state changes provided' })
       await sql`insert into public.simulation_sessions (id, state) values (${id}, ${JSON.stringify(initialState)}::jsonb) on conflict (id) do nothing`
