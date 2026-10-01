@@ -18,6 +18,12 @@ const fract = (value: number) => value - Math.floor(value)
 
 const beatPhase = (time: number, rate: number) => rate > 0 ? fract(time * rate / 60) : 0
 
+function pulseEnvelope(phase: number, decayRate: number) {
+  const peakPhase = 0.18
+  if (phase < peakPhase) return Math.sin((phase / peakPhase) * Math.PI / 2)
+  return Math.exp(-decayRate * Math.pow(phase - peakPhase, 1.2))
+}
+
 function narrowComplex(phase: number, width: number, showP = true, showT = true) {
   let value = 0
   if (showP) value += gaussian(phase, 0.17, 0.035) * 0.13
@@ -112,7 +118,7 @@ function sample(kind: WaveKind, time: number, state: SimulationState) {
   if (kind === 'pressure') {
     if (state.bloodPressureMode !== 'arterial' || !state.bloodPressureAvailable || state.systolic === 0 || !state.pulsePresent) return 0
     const phase = beatPhase(time, state.heartRate)
-    const pulse = phase < 0.18 ? phase / 0.18 : Math.exp(-(phase - 0.18) * 3.2)
+    const pulse = pulseEnvelope(phase, 3.8)
     const normalizedPulse = (pulse - 0.43) * 1.5
     const relativePulse = (state.systolic - state.diastolic) / 60
     return -0.55 + normalizedPulse * Math.min(relativePulse, 1.35)
@@ -120,7 +126,7 @@ function sample(kind: WaveKind, time: number, state: SimulationState) {
   if (kind === 'pleth') {
     if (state.spo2 === 0 || state.heartRate === 0 || !state.pulsePresent) return Math.sin(time * 1.7) * 0.002
     const phase = beatPhase(time, state.heartRate)
-    const upstroke = phase < 0.18 ? Math.pow(phase / 0.18, 1.8) : Math.exp(-(phase - 0.18) * 4.2)
+    const upstroke = pulseEnvelope(phase, 5)
     const notch = Math.exp(-Math.pow((phase - 0.38) / 0.035, 2)) * 0.11
     const amplitude = 0.18 + state.spo2 / 100 * 0.5
     return (upstroke - notch - 0.42) * amplitude * 1.8
@@ -168,10 +174,11 @@ export function Waveform({ kind, color, state, height = 110 }: WaveformProps) {
       context.strokeStyle = color
       context.lineWidth = 2
       context.lineJoin = 'round'
+      context.lineCap = 'round'
       context.beginPath()
       const now = performance.now() / 1000
       const maxAmplitude = canvasHeight * 0.36
-      const sampleStep = kind === 'ecg' ? 0.5 : 2
+      const sampleStep = kind === 'ecg' ? 0.5 : kind === 'pressure' || kind === 'pleth' ? 1 : 2
       for (let x = 0; x <= width; x += sampleStep) {
         const sampleTime = now - (width - x) / 52
         const value = sample(kind, sampleTime, state)
