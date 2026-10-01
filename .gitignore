@@ -21,6 +21,7 @@ tmp/
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+!.vscode/mcp.json
 .vercel
 .idea
 .DS_Store
