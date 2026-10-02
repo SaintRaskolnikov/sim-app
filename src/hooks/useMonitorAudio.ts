@@ -16,6 +16,12 @@ function playTone(context: AudioContext, frequency: number, duration: number, ty
   oscillator.stop(start + duration)
 }
 
+// One semitone per % down to 90%, then 1.6 per % so the tone sinks faster as saturation falls.
+function oximeterPitch(spo2: number) {
+  const semitones = spo2 >= 90 ? spo2 - 100 : -10 + (spo2 - 90) * 1.6
+  return Math.max(110, Math.min(1000, 1000 * Math.pow(2, semitones / 12)))
+}
+
 export function useMonitorAudio(state: SimulationState, activeAlarms: ActiveAlarm[]) {
   const [enabled, setEnabled] = useState(false)
   const contextRef = useRef<AudioContext | null>(null)
@@ -38,7 +44,7 @@ export function useMonitorAudio(state: SimulationState, activeAlarms: ActiveAlar
       const now = performance.now()
       const current = stateRef.current
       if (current.pulsePresent && current.heartRate > 0 && current.spo2 > 0 && now >= nextBeatAt.current) {
-        const frequency = Math.max(300, Math.min(1000, 350 + current.spo2 * 6))
+        const frequency = oximeterPitch(current.spo2)
         playTone(context, frequency, 0.075, 'sine', 0.13)
         nextBeatAt.current = now + 60000 / current.heartRate
       }
