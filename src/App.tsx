@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Activity, ArrowLeft, ArrowUp, BookOpen, HeartPulse, LogOut, Monitor, Pencil, Plus, Radio, Siren, Trash2, Volume2, VolumeX, Wifi, WifiOff, X } from 'lucide-react'
+import { Activity, ArrowLeft, ArrowUp, BookOpen, HeartPulse, LogOut, Monitor, Pencil, Plus, Radio, RotateCcw, Siren, Trash2, Volume2, VolumeX, Wifi, WifiOff, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import './App.css'
 import { findPattern, rhythms, type ECGMorphology, type ECGPattern } from './data/ecgLibrary'
@@ -173,7 +173,7 @@ function NumberControl({ label, value, unit, step, min, max, digits = 0, tone = 
   )
 }
 
-function ControlView({ state, status, sessionId, patterns, presets, update, joinSession, savePreset, deletePreset }: {
+function ControlView({ state, status, sessionId, patterns, presets, update, joinSession, savePreset, deletePreset, resetPresets }: {
   state: SimulationState
   status: 'connecting' | 'connected' | 'offline'
   sessionId: string
@@ -183,6 +183,7 @@ function ControlView({ state, status, sessionId, patterns, presets, update, join
   joinSession: (id: string) => void
   savePreset: (preset: ScenarioPreset) => void
   deletePreset: (id: string) => void
+  resetPresets: () => void
 }) {
   const [sessionDraft, setSessionDraft] = useState(sessionId)
   const [editingPreset, setEditingPreset] = useState<ScenarioPreset | null>(null)
@@ -248,7 +249,7 @@ function ControlView({ state, status, sessionId, patterns, presets, update, join
           <div className="rhythm-grid">{rhythms.map((rhythm) => <button key={rhythm.id} className={state.rhythm === rhythm.rhythm ? 'selected' : ''} onClick={() => update({ rhythm: rhythm.rhythm, heartRate: rhythm.suggestedRate ?? state.heartRate, pulsePresent: ['vfib', 'fine-vfib', 'asystole'].includes(rhythm.id) ? false : state.pulsePresent, selectedEcg: rhythm.id, showTwelveLead: false })}><span className="rhythm-led" />{rhythm.title}</button>)}</div>
         </section>
 
-        <section className="control-section preset-section"><div className="section-heading"><div><span className="section-index">03</span><h2>Scenario presets</h2></div><button className="preset-add-button" onClick={startNewPreset}><Plus size={15} />Add preset</button></div>
+        <section className="control-section preset-section"><div className="section-heading"><div><span className="section-index">03</span><h2>Scenario presets</h2></div><div className="preset-heading-actions"><button className="preset-add-button" onClick={() => { if (window.confirm('Reset all scenario presets to the original set? Custom presets and edits will be lost.')) resetPresets() }}><RotateCcw size={15} />Reset</button><button className="preset-add-button" onClick={startNewPreset}><Plus size={15} />Add preset</button></div></div>
           <div className="preset-grid">{presets.map((preset) => { const Icon = presetIcons[preset.icon]; return <div key={preset.id} className="preset-tile"><button className={`preset-button ${preset.tone}`} onClick={() => update(preset.patch)}><span className="preset-icon"><Icon size={19} /></span><span>{preset.name}</span><span className="preset-apply">Apply</span></button><button className="pattern-edit preset-edit" aria-label={`Edit ${preset.name}`} onClick={() => startPresetEdit(preset)}><Pencil size={14} /></button></div> })}</div>
         </section>
 
@@ -389,7 +390,7 @@ function App() {
   if (isMonitorRoute) return <MonitorView {...session} patterns={library.patterns} signOut={authRequired ? auth.signOut : undefined} />
   if (path === '/ekg-library') return <LibraryView {...session} patterns={library.patterns} savePattern={library.savePattern} deletePattern={library.deletePattern} />
   if (isAuthRoute) return <MonitorAccess configured={auth.configured} loading={auth.loading} initialMode={initialAuthMode} onAuthenticated={auth.refreshSession} />
-  return <ControlView {...session} patterns={library.patterns} presets={scenarioPresets.presets} savePreset={scenarioPresets.savePreset} deletePreset={scenarioPresets.deletePreset} />
+  return <ControlView {...session} patterns={library.patterns} presets={scenarioPresets.presets} savePreset={scenarioPresets.savePreset} deletePreset={scenarioPresets.deletePreset} resetPresets={scenarioPresets.resetPresets} />
 }
 
 export default App
