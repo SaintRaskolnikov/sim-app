@@ -86,19 +86,5 @@ export function useScenarioPresets(enabled = true) {
     }
   }
 
-  const resetPresets = () => {
-    const customIds = presetsRef.current.filter((preset) => preset.id.startsWith('custom-preset-')).map((preset) => preset.id)
-    setCurrent(DEFAULT_SCENARIO_PRESETS)
-    if (import.meta.env.PROD) {
-      void (async () => {
-        const headers = { 'Content-Type': 'application/json' }
-        for (const id of customIds) await fetch('/api/scenario-presets', { method: 'DELETE', headers, body: JSON.stringify({ id }) })
-        await fetch('/api/scenario-presets', { method: 'POST', headers, body: JSON.stringify({ presets: DEFAULT_SCENARIO_PRESETS }) })
-      })()
-    } else {
-      socketRef.current?.emit('save-scenario-presets', DEFAULT_SCENARIO_PRESETS)
-    }
-  }
-
-  return { presets, savePreset, deletePreset, resetPresets }
+  return { presets, savePreset, deletePreset }
 }

@@ -120,7 +120,6 @@ a { color: inherit; }
 .preset-edit { align-self: center; }
 .preset-add-button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 9px; border: 1px solid #cbd9cd; border-radius: 4px; background: transparent; color: #37654e; font-size: 10px; font-weight: 800; }
 .preset-add-button:hover { background: #e8f0e9; }
-.preset-heading-actions { display: flex; gap: 8px; }
 .display-control { display: flex; align-items: center; justify-content: space-between; min-height: 63px; padding: 10px 12px; border: 1px solid #dce4dc; border-radius: 6px; background: var(--white); }
 .display-copy { display: flex; align-items: center; gap: 10px; }
 .display-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 5px; background: #e7eee7; color: #43715a; }
