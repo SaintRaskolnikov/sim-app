@@ -4,7 +4,7 @@ import { DEFAULT_SCENARIO_PRESETS, type ScenarioPreset } from '../data/scenarioP
 
 function mergeDefaults(saved: ScenarioPreset[]) {
   const ids = new Set(saved.map((preset) => preset.id))
-  return [...saved, ...DEFAULT_SCENARIO_PRESETS.filter((preset) => !ids.has(preset.id))]
+  return [...DEFAULT_SCENARIO_PRESETS.filter((preset) => !ids.has(preset.id)), ...saved]
 }
 
 export function useScenarioPresets(enabled = true) {

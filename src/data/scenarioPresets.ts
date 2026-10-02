@@ -1,4 +1,4 @@
-import type { StatePatch } from '../types'
+import { INITIAL_STATE, type StatePatch } from '../types'
 
 export type PresetTone = 'coral' | 'amber' | 'teal'
 export type PresetIconId = 'siren' | 'heart' | 'activity'
@@ -12,6 +12,10 @@ export interface ScenarioPreset {
 }
 
 export const DEFAULT_SCENARIO_PRESETS: ScenarioPreset[] = [
+  {
+    id: 'normal-baseline', name: 'Normal · baseline', tone: 'teal', icon: 'activity',
+    patch: { ...INITIAL_STATE, alarmLimits: { ...INITIAL_STATE.alarmLimits } },
+  },
   {
     id: 'cardiac-arrest-vf', name: 'Cardiac arrest · VF', tone: 'coral', icon: 'siren',
     patch: { heartRate: 0, rhythm: 'vfib', pulsePresent: false, bloodPressureAvailable: false, selectedEcg: 'vfib', showTwelveLead: false, systolic: 0, diastolic: 0, spo2: 48, respiratoryRate: 0, etco2: 8 },
