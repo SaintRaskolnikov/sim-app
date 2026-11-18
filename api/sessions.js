@@ -21,6 +21,7 @@ const initialState = {
   spo2: 96,
   respiratoryRate: 14,
   etco2: 35,
+  etco2Available: false,
   temperature: 36.8,
   selectedEcg: 'normal-sinus',
   showTwelveLead: false,
@@ -68,6 +69,7 @@ function cleanPatch(input) {
   if (typeof input.pulsePresent === 'boolean') accepted.pulsePresent = input.pulsePresent
   if (input.bloodPressureMode === 'cuff' || input.bloodPressureMode === 'arterial') accepted.bloodPressureMode = input.bloodPressureMode
   if (typeof input.bloodPressureAvailable === 'boolean') accepted.bloodPressureAvailable = input.bloodPressureAvailable
+  if (typeof input.etco2Available === 'boolean') accepted.etco2Available = input.etco2Available
   if (input.alarmLimits !== undefined) {
     const limits = cleanAlarmLimits(input.alarmLimits)
     if (limits) accepted.alarmLimits = limits

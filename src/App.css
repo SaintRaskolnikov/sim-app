@@ -95,6 +95,7 @@ a { color: inherit; }
 .segmented-control button[aria-pressed="true"] { background: #285d49; color: white; }
 .bp-availability { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .bp-availability input { accent-color: #285d49; }
+.etco2-control { display: flex; min-width: 0; flex-direction: column; gap: 7px; }
 .stepper > button:disabled { cursor: not-allowed; opacity: .42; }
 .alarm-limit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
 .alarm-limit-field { display: grid; grid-template-columns: minmax(95px, 1fr) minmax(64px, .72fr) minmax(64px, .72fr) auto; align-items: center; gap: 7px; min-width: 0; padding: 8px; border: 1px solid #dce4dc; border-radius: 5px; background: var(--white); color: #56665c; font-size: 9px; font-weight: 800; }

@@ -66,6 +66,10 @@ function cleanPreset(preset, sortOrder) {
     if (typeof preset.patch.bloodPressureAvailable !== 'boolean') return null
     patch.bloodPressureAvailable = preset.patch.bloodPressureAvailable
   }
+  if (preset.patch.etco2Available !== undefined) {
+    if (typeof preset.patch.etco2Available !== 'boolean') return null
+    patch.etco2Available = preset.patch.etco2Available
+  }
   if (preset.patch.alarmLimits !== undefined) {
     const alarmLimits = cleanAlarmLimits(preset.patch.alarmLimits)
     if (!alarmLimits) return null

@@ -28,6 +28,7 @@ const initialState = {
   spo2: 96,
   respiratoryRate: 14,
   etco2: 35,
+  etco2Available: false,
   temperature: 36.8,
   selectedEcg: 'normal-sinus',
   showTwelveLead: false,
@@ -183,6 +184,7 @@ io.on('connection', (socket) => {
     if (typeof patch.pulsePresent === 'boolean') accepted.pulsePresent = patch.pulsePresent
     if (patch.bloodPressureMode === 'cuff' || patch.bloodPressureMode === 'arterial') accepted.bloodPressureMode = patch.bloodPressureMode
     if (typeof patch.bloodPressureAvailable === 'boolean') accepted.bloodPressureAvailable = patch.bloodPressureAvailable
+    if (typeof patch.etco2Available === 'boolean') accepted.etco2Available = patch.etco2Available
     if (patch.alarmLimits !== undefined) {
       const limits = cleanAlarmLimits(patch.alarmLimits)
       if (limits) accepted.alarmLimits = limits

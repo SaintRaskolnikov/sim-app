@@ -46,6 +46,7 @@ export interface SimulationState {
   spo2: number
   respiratoryRate: number
   etco2: number
+  etco2Available: boolean
   temperature: number
   selectedEcg: string
   showTwelveLead: boolean
@@ -65,6 +66,7 @@ export const INITIAL_STATE: SimulationState = {
   spo2: 96,
   respiratoryRate: 14,
   etco2: 35,
+  etco2Available: false,
   temperature: 36.8,
   selectedEcg: 'normal-sinus',
   showTwelveLead: false,
@@ -87,7 +89,7 @@ export function getActiveAlarms(state: SimulationState): ActiveAlarm[] {
   }
   check('spo2', 'SpO₂', state.spo2, state.alarmLimits.spo2)
   check('respiratoryRate', 'RR', state.respiratoryRate, state.alarmLimits.respiratoryRate)
-  check('etco2', 'EtCO₂', state.etco2, state.alarmLimits.etco2)
+  if (state.etco2Available) check('etco2', 'EtCO₂', state.etco2, state.alarmLimits.etco2)
   check('temperature', 'TEMP', state.temperature, state.alarmLimits.temperature)
   return alarms
 }

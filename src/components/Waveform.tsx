@@ -131,6 +131,7 @@ function sample(kind: WaveKind, time: number, state: SimulationState) {
     const amplitude = 0.18 + state.spo2 / 100 * 0.5
     return (upstroke - notch - 0.42) * amplitude * 1.8
   }
+  if (!state.etco2Available) return 0
   if (state.respiratoryRate === 0) return Math.sin(time * 2) * 0.01
   const phase = ((time * state.respiratoryRate / 60) % 1 + 1) % 1
   let capno = 0
